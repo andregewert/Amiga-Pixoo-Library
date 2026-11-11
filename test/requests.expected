@@ -1,0 +1,23 @@
+Channel/SetBrightness Brightness=40
+Channel/OnOffScreen OnOff=0
+Channel/OnOffScreen OnOff=1
+Channel/SetIndex SelectIndex=3
+Channel/SetClockSelectId ClockId=182
+Channel/GetAllConf
+Channel/GetAllConf
+Device/SetUTC Utc=1762891200
+Test/Fail
+Channel/GetAllConf
+Test/Big
+Test/Plain
+Channel/GetAllConf
+Draw/ResetHttpGifId
+Draw/SendHttpGif PicData=12288 bytes crc df932cac PicID=1 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64
+Draw/SendHttpGif PicData=12288 bytes crc 2148c66c PicID=2 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64
+Draw/ResetHttpGifId
+Draw/SendHttpGif PicData=12288 bytes crc 19fe1511 PicID=1 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64
+Draw/SendHttpGif PicData=12288 bytes crc 1b174394 PicID=2 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64
+Draw/ResetHttpGifId
+Draw/SendHttpGif PicData=768 bytes crc a2a44df1 PicID=1 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=16
+Draw/ResetHttpGifId
+Draw/SendHttpGif PicData=12288 bytes crc 1b174394 PicID=1 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64

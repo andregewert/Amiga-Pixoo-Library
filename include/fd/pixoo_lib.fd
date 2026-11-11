@@ -1,0 +1,24 @@
+* "pixoo.library"
+* Automatically generated FD (sfdc 1.11f)! Do not edit!
+##base _PixooBase
+##bias 30
+##public
+* "pixoo.library"
+PixooOpenA(host,tags)(a0,a1)
+PixooClose(handle)(a0)
+PixooErrorString(error)(d0)
+PixooSendCommand(handle,json,reply,replysize)(a0,a1,a2,d0)
+PixooSetBrightness(handle,percent)(a0,d0)
+PixooSetScreen(handle,on)(a0,d0)
+PixooSetChannel(handle,channel)(a0,d0)
+PixooSetClockFace(handle,id)(a0,d0)
+PixooGetConfigValue(handle,key,value)(a0,a1,a2)
+PixooFill(handle,rgb)(a0,d0)
+PixooSetPixel(handle,x,y,rgb)(a0,d0,d1,d2)
+PixooGetPixel(handle,x,y)(a0,d0,d1)
+PixooDrawLine(handle,x0,y0,x1,y1,rgb)(a0,d0,d1,d2,d3,d4)
+PixooDrawRect(handle,x0,y0,x1,y1,rgb)(a0,d0,d1,d2,d3,d4)
+PixooFillRect(handle,x0,y0,x1,y1,rgb)(a0,d0,d1,d2,d3,d4)
+PixooGetBuffer(handle,size)(a0,a1)
+PixooPush(handle)(a0)
+##end

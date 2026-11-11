@@ -1,0 +1,14 @@
+# build results (make, make check, make docs)
+/build/
+/bin/
+/test/hosttest
+*.o
+*.debug
+
+# tools
+__pycache__/
+*.pyc
+
+# editor / OS leftovers
+*~
+.DS_Store
