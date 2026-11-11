@@ -17,6 +17,7 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 - Bilder in jedem Format, das das Datatypes-System liest (IFF, PNG, JPEG …), passend
   skaliert mit festem Seitenverhältnis; Transparenz wird über den Hintergrund geblendet
 - GIF-Animationen (von der Library dekodiert, bis 59 Bilder), vom Gerät abgespielt
+- PixooCtl: Diashow aller Bilder einer Schublade
 - Läuft mit jedem TCP/IP-Stack mit bsdsocket.library (Roadshow, AmiTCP, Miami). Nur HTTP,
   daher keine SSL-Bibliothek nötig.
 - Timeouts; Ctrl-C bricht Netzwerkzugriffe ab
@@ -35,7 +36,8 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
          CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
          COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
          SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,
-         ENLARGE/S,DELAY/K/N,FRAMES/K/N
+         ENLARGE/S,DELAY/K/N,FRAMES/K/N,SHOW/K,PATTERN/K,SECONDS/K/N,REPEAT/S,
+         RANDOM/S
 ```
 
 | Option | Bedeutung |
@@ -54,6 +56,11 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `ENLARGE` | kleine Bilder auch auf Displaygröße vergrößern |
 | `DELAY=n` | Millisekunden pro Bild von `ANIM` (Vorgabe: Mittelwert der Datei) |
 | `FRAMES=n` | höchstens so viele Bilder von `ANIM` senden, 1–59 (Vorgabe 59; längere Animationen werden ausgedünnt) |
+| `SHOW=schublade` | Diashow der Bilder einer Schublade, nach Namen sortiert; Ctrl-C beendet sie |
+| `PATTERN=muster` | Dateien für `SHOW`, z. B. `#?.(iff\|png)` (Vorgabe alle; Icons werden übergangen) |
+| `SECONDS=n` | Anzeigedauer pro Bild bei `SHOW` (Vorgabe 10) |
+| `REPEAT` | `SHOW` nach dem letzten Bild wieder von vorn beginnen |
+| `RANDOM` | Bilder von `SHOW` in zufälliger Reihenfolge zeigen (jede Runde neu gemischt) |
 | `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen; `*n` beginnt eine neue Zeile |
 | `TIME` | aktuelle Uhrzeit (HH:MM) zentriert in `COLOR` anzeigen |
 | `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR`, über dem zuletzt gesendeten Bild; das vorher mit `FILL`, `TEST` oder `TEXT` setzen (ein neues Bild entfernt alle Lauftexte) |
@@ -72,13 +79,14 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `PORT`, `TIMEOUT`, `SIZE` | Port (80), Timeout in s (5), Displaygröße (64) |
 
 `FILL`, `TEST`, `CHARSET`, `IMAGE`, `TEXT` und `TIME` zeichnen übereinander; das Ergebnis wird
-am Ende einmal gesendet (oder dient `ANIM` als Hintergrund).
+am Ende einmal gesendet (oder dient `ANIM` und `SHOW` als Hintergrund).
 
 Beispiele: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
 `PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" COLOR=FFFF00`,
 `PixooCtl 192.168.1.50 FONT=topaz/8 TIME COLOR=00FF00`,
 `PixooCtl 192.168.1.50 IMAGE=Boing.iff TEXT=Boing!`,
-`PixooCtl 192.168.1.50 FILL=000000 ANIM=katze.gif FRAMES=20`
+`PixooCtl 192.168.1.50 FILL=000000 ANIM=katze.gif FRAMES=20`,
+`PixooCtl 192.168.1.50 SHOW=Work:Bilder PATTERN=#?.iff SECONDS=20 REPEAT`
 
 ## Bauen
 

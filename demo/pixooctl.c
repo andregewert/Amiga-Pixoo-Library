@@ -17,6 +17,8 @@
  * PixooCtl 192.168.1.50 IMAGE=Work:Bilder/Boing.iff
  * PixooCtl 192.168.1.50 IMAGE=Icon.png ENLARGE TEXT="Hallo" COLOR=FFFFFF
  * PixooCtl 192.168.1.50 FILL=000000 ANIM=Work:Bilder/Katze.gif FRAMES=20
+ * PixooCtl 192.168.1.50 SHOW=Work:Bilder PATTERN=#?.(iff|png) SECONDS=20 REPEAT
+ * PixooCtl 192.168.1.50 SHOW=Work:Bilder RANDOM REPEAT
  * PixooCtl 192.168.1.50 DEMO=100
  * PixooCtl 192.168.1.50 GET=Brightness
  * PixooCtl 192.168.1.50 CMD={"Command":"Channel/GetAllConf"}
@@ -25,7 +27,7 @@
  * Several options may be given at once; they run in the order of the
  * template. The drawing options FILL, TEST, CHARSET, IMAGE, TEXT and TIME
  * draw on top of each other into the framebuffer, which is sent once
- * after them, or serves as the background of ANIM. Opens pixoo.library
+ * after them, or serves as the background of ANIM and SHOW. Opens pixoo.library
  * from LIBS: or PROGDIR:.
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
@@ -58,7 +60,8 @@ struct Library *DiskfontBase = NULL;    /**< diskfont.library, only for FONT */
 #define TEMPLATE "HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N," \
                  "CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
                  "TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,SPEED/K/N,DIR/K,ALIGN/K," \
-                 "DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,ENLARGE/S,DELAY/K/N,FRAMES/K/N"
+                 "DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,ENLARGE/S,DELAY/K/N,FRAMES/K/N," \
+                 "SHOW/K,PATTERN/K,SECONDS/K/N,REPEAT/S,RANDOM/S"
 
 /** Positions of the arguments in the ReadArgs array. */
 enum {
@@ -66,7 +69,7 @@ enum {
     ARG_CHANNEL, ARG_CLOCK, ARG_FONT, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
     ARG_TIME, ARG_CLEARTEXT, ARG_SCROLL, ARG_TEXTID, ARG_DEVFONT, ARG_WIDTH, ARG_SPEED, ARG_DIR,
     ARG_ALIGN, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO, ARG_IMAGE, ARG_ANIM, ARG_ENLARGE, ARG_DELAY,
-    ARG_FRAMES,
+    ARG_FRAMES, ARG_SHOW, ARG_PATTERN, ARG_SECONDS, ARG_REPEAT, ARG_RANDOM,
     ARG_COUNT       /**< number of arguments */
 };
 
@@ -340,6 +343,295 @@ static void unescape(char *dst, const char *src, LONG cap)
 }
 
 /**
+ * @brief Ticks (1/50 s) since a time stamp.
+ * @param t0 The time stamp.
+ * @return The ticks.
+ */
+static LONG ticks_since(const struct DateStamp *t0)
+{
+    struct DateStamp t1;
+
+    DateStamp(&t1);
+    return (t1.ds_Days - t0->ds_Days) * 24 * 60 * 60 * TICKS_PER_SECOND +
+           (t1.ds_Minute - t0->ds_Minute) * 60 * TICKS_PER_SECOND + (t1.ds_Tick - t0->ds_Tick);
+}
+
+/**
+ * @brief Wait until a number of ticks has passed since a time stamp.
+ * @param t0 The time stamp.
+ * @param ticks The ticks.
+ * @return #PIXOOERR_OK, or #PIXOOERR_BREAK on Ctrl-C.
+ */
+static LONG wait_until(const struct DateStamp *t0, LONG ticks)
+{
+    LONG left;
+
+    while ((left = ticks - ticks_since(t0)) > 0) {
+        if (CheckSignal(SIGBREAKF_CTRL_C)) return PIXOOERR_BREAK;
+        Delay(left < 10 ? left : 10);       /* look at Ctrl-C 5 times a second */
+    }
+    return PIXOOERR_OK;
+}
+
+/** A file of the slideshow; the list is sorted by name. */
+struct Slide {
+    struct Slide *next;         /**< next file */
+    char name[1];               /**< file name (allocated longer) */
+};
+
+/**
+ * @brief Compare two names ignoring the case of ASCII letters.
+ * @param a One name.
+ * @param b The other.
+ * @return Less than, equal to or greater than 0, like strcmp().
+ */
+static int compare_names(const char *a, const char *b)
+{
+    int ca, cb;
+
+    do {
+        ca = (unsigned char)*a++;
+        cb = (unsigned char)*b++;
+        if (ca >= 'A' && ca <= 'Z') ca += 'a' - 'A';
+        if (cb >= 'A' && cb <= 'Z') cb += 'a' - 'A';
+    } while (ca && ca == cb);
+    return ca - cb;
+}
+
+/**
+ * @brief Free the list of a slideshow.
+ * @param s The first file, or NULL.
+ */
+static void free_slides(struct Slide *s)
+{
+    struct Slide *next;
+
+    for (; s; s = next) {
+        next = s->next;
+        FreeVec(s);
+    }
+}
+
+/**
+ * @brief Collect the files of a drawer that match a pattern, sorted by name.
+ *
+ * Only files, no drawers; icons (".info") are always left out.
+ *
+ * @param dir The drawer.
+ * @param pattern AmigaDOS pattern, compared without case (e.g. "#?.iff").
+ * @param[out] count Receives the number of files.
+ * @return The list (free_slides()), or NULL if no file matches or on an
+ *         error (reported).
+ */
+static struct Slide *collect_slides(const char *dir, const char *pattern, LONG *count)
+{
+    struct Slide *list = NULL, *s, **pp;
+    struct FileInfoBlock *fib = NULL;
+    char *pat = NULL;
+    BPTR lock = 0;
+    LONG plen, n;
+
+    *count = 0;
+    for (plen = 0; pattern[plen]; plen++) ;
+    plen = plen * 2 + 2;
+    if (!(pat = AllocVec(plen, MEMF_ANY)) || !(fib = AllocDosObject(DOS_FIB, NULL))) {
+        PrintFault(ERROR_NO_FREE_STORE, (STRPTR)"PixooCtl");
+        goto done;
+    }
+    if (ParsePatternNoCase((STRPTR)pattern, (STRPTR)pat, plen) < 0) {
+        Printf("PixooCtl: invalid PATTERN %s\n", (LONG)pattern);
+        goto done;
+    }
+    if (!(lock = Lock((STRPTR)dir, ACCESS_READ)) || !Examine(lock, fib)) {
+        PrintFault(IoErr(), (STRPTR)dir);
+        goto done;
+    }
+    if (fib->fib_DirEntryType <= 0) {
+        Printf("PixooCtl: %s is not a drawer\n", (LONG)dir);
+        goto done;
+    }
+    while (ExNext(lock, fib)) {
+        if (fib->fib_DirEntryType >= 0) continue;
+        for (n = 0; fib->fib_FileName[n]; n++) ;
+        if (n >= 5 && compare_names(fib->fib_FileName + n - 5, ".info") == 0) continue;
+        if (!MatchPatternNoCase((STRPTR)pat, (STRPTR)fib->fib_FileName)) continue;
+        if (!(s = AllocVec(sizeof(*s) + n, MEMF_ANY))) {
+            PrintFault(ERROR_NO_FREE_STORE, (STRPTR)"PixooCtl");
+            free_slides(list);
+            list = NULL;
+            *count = 0;
+            goto done;
+        }
+        CopyMem(fib->fib_FileName, s->name, n + 1);
+        for (pp = &list; *pp && compare_names((*pp)->name, s->name) <= 0; pp = &(*pp)->next) ;
+        s->next = *pp;
+        *pp = s;
+        ++*count;
+    }
+    if (!list) Printf("PixooCtl: no files matching %s in %s\n", (LONG)pattern, (LONG)dir);
+
+done:
+    if (lock) UnLock(lock);
+    if (fib) FreeDosObject(DOS_FIB, fib);
+    if (pat) FreeVec(pat);
+    return list;
+}
+
+/**
+ * @brief Next pseudo-random number (xorshift32).
+ * @param[in,out] state The generator state, never 0.
+ * @return The number.
+ */
+static ULONG next_random(ULONG *state)
+{
+    ULONG x = *state;
+
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    return *state = x;
+}
+
+/**
+ * @brief Put a slideshow list into random order (Fisher-Yates).
+ *
+ * If @p avoid would come first, it is swapped with the second file, so
+ * that a repeated show does not show the same picture twice in a row.
+ *
+ * @param[in,out] list The list; receives the new first file.
+ * @param count Number of files.
+ * @param[in,out] state Random generator state.
+ * @param avoid The file shown last, or NULL.
+ */
+static void shuffle_slides(struct Slide **list, LONG count, ULONG *state, const struct Slide *avoid)
+{
+    struct Slide **v, *s, *t;
+    LONG i, j;
+
+    if (count < 2 || !(v = AllocVec(count * sizeof(*v), MEMF_ANY))) return;
+    for (i = 0, s = *list; i < count && s; i++, s = s->next) v[i] = s;
+    count = i;
+    for (i = count - 1; i > 0; i--) {
+        j = (LONG)(next_random(state) % (ULONG)(i + 1));
+        t = v[i];
+        v[i] = v[j];
+        v[j] = t;
+    }
+    if (v[0] == avoid) {
+        t = v[0];
+        v[0] = v[1];
+        v[1] = t;
+    }
+    for (i = 0; i < count - 1; i++) v[i]->next = v[i + 1];
+    v[count - 1]->next = NULL;
+    *list = v[0];
+    FreeVec(v);
+}
+
+/** Settings of a slideshow. */
+struct ShowArgs {
+    const char *dir;            /**< the drawer */
+    LONG ticks;                 /**< display time per picture in 1/50 s */
+    int repeat;                 /**< start again after the last picture */
+    int enlarge;                /**< scale small pictures up */
+    LONG delay;                 /**< milliseconds per frame of animations, 0 = from the file */
+    LONG frames;                /**< most frames of animations, 0 = default */
+    int random;                 /**< random order, shuffled again for every round */
+    LONG count;                 /**< number of files */
+};
+
+/**
+ * @brief Show the files of a list one after the other.
+ *
+ * The next picture is loaded and scaled into the framebuffer right after
+ * the current one was sent, while it is on display, and sent when the
+ * display time is over; so loading costs no time unless it takes longer
+ * than the display time. GIF animations are sent when their turn comes
+ * (decoding and sending take a moment) and are shown for the display
+ * time after that. Every picture is drawn over a copy of the framebuffer
+ * at the start. Files that cannot be loaded are reported and skipped.
+ * In random order, the list is shuffled before each round.
+ *
+ * @param px The handle.
+ * @param[in,out] list The files; reordered in random order.
+ * @param a The settings.
+ * @return An error code (#PIXOOERR_BREAK on Ctrl-C).
+ */
+static LONG slideshow(struct PixooHandle *px, struct Slide **list, const struct ShowArgs *a)
+{
+    struct DateStamp t0;
+    struct Slide *s, *last = NULL;
+    ULONG seed;
+    char path[512];
+    UBYTE *fb, *bg;
+    LONG size, fbsize, err = PIXOOERR_OK, w, h, frames, shown = 0, first = 1, i;
+
+    fb = PixooGetBuffer(px, &size);
+    fbsize = size * size * 3;
+    if (!(bg = AllocVec(fbsize, MEMF_ANY))) return PIXOOERR_NOMEM;
+    CopyMem(fb, bg, fbsize);
+    if (a->random) {
+        DateStamp(&t0);
+        seed = (ULONG)t0.ds_Days * 1440 * 3000 + (ULONG)t0.ds_Minute * 3000 + (ULONG)t0.ds_Tick;
+        seed ^= (ULONG)FindTask(NULL);
+        if (!seed) seed = 1;
+        shuffle_slides(list, a->count, &seed, NULL);
+    }
+    s = *list;
+    for (;;) {
+        /* prepare the next picture while the current one is shown */
+        for (i = 0; a->dir[i] && i < (LONG)sizeof(path) - 1; i++) path[i] = a->dir[i];
+        path[i] = 0;
+        AddPart((STRPTR)path, (STRPTR)s->name, sizeof(path));
+        CopyMem(bg, fb, fbsize);
+        w = h = frames = 0;
+        err = PixooLoadImage(px, (CONST_STRPTR)path, PIXOOA_ImageEnlarge, a->enlarge,
+                             PIXOOA_SourceWidth, (ULONG)&w, PIXOOA_SourceHeight, (ULONG)&h,
+                             PIXOOA_SourceFrames, (ULONG)&frames, TAG_DONE);
+        if (err == PIXOOERR_BREAK) break;
+        if (err) {
+            Printf("%s: %s, skipped\n", (LONG)s->name, (LONG)PixooErrorString(err));
+            err = PIXOOERR_OK;
+        } else {
+            if (!first && (err = wait_until(&t0, a->ticks))) break;
+            if (frames > 1) {
+                CopyMem(bg, fb, fbsize);
+                err = PixooLoadAnim(px, (CONST_STRPTR)path, PIXOOA_ImageEnlarge, a->enlarge,
+                                    a->delay ? PIXOOA_AnimSpeed : TAG_IGNORE, a->delay,
+                                    a->frames ? PIXOOA_AnimMaxFrames : TAG_IGNORE, a->frames,
+                                    TAG_DONE);
+                DateStamp(&t0);             /* it plays once all frames are there */
+            } else {
+                DateStamp(&t0);
+                err = PixooPush(px);
+            }
+            if (err) {
+                Printf("%s: %s\n", (LONG)s->name, (LONG)PixooErrorString(err));
+                break;
+            }
+            if (frames > 1) Printf("%s (%ld x %ld, %ld frames)\n", (LONG)s->name, w, h, frames);
+            else Printf("%s (%ld x %ld)\n", (LONG)s->name, w, h);
+            first = 0;
+            shown++;
+            last = s;
+        }
+        if (!(s = s->next)) {
+            if (!a->repeat) break;
+            if (!shown) {
+                Printf("PixooCtl: no picture could be shown\n");
+                err = PIXOOERR_FORMAT;
+                break;
+            }
+            if (a->random) shuffle_slides(list, a->count, &seed, last);
+            s = *list;
+            shown = 0;
+        }
+    }
+    FreeVec(bg);
+    return err;
+}
+
+/**
  * @brief Bouncing square for a number of frames; prints the frame rate.
  * @param px The handle.
  * @param frames Number of frames.
@@ -347,7 +639,7 @@ static void unescape(char *dst, const char *src, LONG cap)
  */
 static LONG demo(struct PixooHandle *px, LONG frames)
 {
-    struct DateStamp t0, t1;
+    struct DateStamp t0;
     LONG size, x = 3, y = 11, dx = 1, dy = 1, n, ticks, err = PIXOOERR_OK, s = 8;
     static const ULONG colours[] = { 0xFF4040, 0x40FF40, 0x4040FF, 0xFFFF40, 0xFF40FF, 0x40FFFF };
 
@@ -368,9 +660,7 @@ static LONG demo(struct PixooHandle *px, LONG frames)
         if (x <= 1 || x + s >= size - 1) dx = -dx;
         if (y <= 1 || y + s >= size - 1) dy = -dy;
     }
-    DateStamp(&t1);
-    ticks = (t1.ds_Days - t0.ds_Days) * 24 * 60 * 60 * TICKS_PER_SECOND +
-            (t1.ds_Minute - t0.ds_Minute) * 60 * TICKS_PER_SECOND + (t1.ds_Tick - t0.ds_Tick);
+    ticks = ticks_since(&t0);
     if (n > 0 && ticks > 0)
         Printf("%ld frames in %ld.%02ld s = %ld.%ld frames/s\n", n, ticks / TICKS_PER_SECOND,
                (ticks % TICKS_PER_SECOND) * 2, n * TICKS_PER_SECOND / ticks,
@@ -399,6 +689,7 @@ int main(void)
     static const char *const alignnames[] = { "LEFT", "CENTER", "CENTRE", "RIGHT", NULL };
     static const LONG alignvalues[] = { PIXOOALIGN_LEFT, PIXOOALIGN_CENTER, PIXOOALIGN_CENTER, PIXOOALIGN_RIGHT };
     struct TextFont *font = NULL;
+    struct Slide *slides = NULL;
 
     (void)VersTag;
     if (!(rda = ReadArgs((STRPTR)TEMPLATE, args, NULL))) {
@@ -498,8 +789,8 @@ int main(void)
         show_time(px, color);
         drawn = 1;
     }
-    /* ANIM sends its own pictures, over the framebuffer as background */
-    if (drawn && !args[ARG_ANIM]) STEP("Picture", PixooPush(px));
+    /* ANIM and SHOW send their own pictures, over the framebuffer as background */
+    if (drawn && !args[ARG_ANIM] && !args[ARG_SHOW]) STEP("Picture", PixooPush(px));
     if (args[ARG_ANIM]) {
         err = PixooLoadAnim(px, (CONST_STRPTR)args[ARG_ANIM],
                             PIXOOA_ImageEnlarge, args[ARG_ENLARGE] ? TRUE : FALSE,
@@ -512,6 +803,30 @@ int main(void)
                             TAG_DONE);
         if (frames) Printf("Animation: %ld x %ld pixels, %ld frames\n", sw, sh, frames);
         STEP("Animation", err);
+    }
+    if (args[ARG_SHOW]) {
+        struct ShowArgs sa;
+        LONG n;
+
+        sa.dir = (const char *)args[ARG_SHOW];
+        sa.ticks = (args[ARG_SECONDS] ? *(LONG *)args[ARG_SECONDS] : 10) * TICKS_PER_SECOND;
+        sa.repeat = args[ARG_REPEAT] != 0;
+        sa.enlarge = args[ARG_ENLARGE] != 0;
+        sa.delay = args[ARG_DELAY] ? *(LONG *)args[ARG_DELAY] : 0;
+        sa.frames = args[ARG_FRAMES] ? *(LONG *)args[ARG_FRAMES] : 0;
+        sa.random = args[ARG_RANDOM] != 0;
+        if (sa.ticks < TICKS_PER_SECOND) {
+            Printf("PixooCtl: SECONDS must be at least 1\n");
+            rc = RETURN_FAIL;
+            goto done;
+        }
+        if (!(slides = collect_slides(sa.dir, args[ARG_PATTERN] ? (const char *)args[ARG_PATTERN] : "#?", &n))) {
+            rc = RETURN_WARN;
+            goto done;
+        }
+        Printf("Slideshow: %ld files\n", n);
+        sa.count = n;
+        STEP("Slideshow", slideshow(px, &slides, &sa));
     }
     if (args[ARG_CLEARTEXT]) STEP("Clear text", PixooClearText(px));
     if (args[ARG_SCROLL]) {
@@ -553,6 +868,7 @@ int main(void)
     }
 
 done:
+    free_slides(slides);
     PixooClose(px);
     if (font) CloseFont(font);          /* after PixooClose(): no longer used */
     if (DiskfontBase) CloseLibrary(DiskfontBase);

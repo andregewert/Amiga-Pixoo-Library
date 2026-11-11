@@ -17,6 +17,7 @@ network, plus the Shell tool **PixooCtl**. It was inspired by the Python library
 - Pictures in any format the datatypes system reads (IFF, PNG, JPEG, …), scaled to fit
   with their aspect ratio kept; transparency is blended over the background
 - GIF animations (decoded by the library, up to 59 frames) played by the device
+- PixooCtl: slideshow of all pictures in a drawer
 - Works with any bsdsocket.library TCP/IP stack (Roadshow, AmiTCP, Miami). Plain HTTP, so no
   SSL library is needed.
 - Timeouts, and Ctrl-C interrupts network calls
@@ -35,7 +36,8 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
          CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
          COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
          SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,
-         ENLARGE/S,DELAY/K/N,FRAMES/K/N
+         ENLARGE/S,DELAY/K/N,FRAMES/K/N,SHOW/K,PATTERN/K,SECONDS/K/N,REPEAT/S,
+         RANDOM/S
 ```
 
 | Option | Meaning |
@@ -54,6 +56,11 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `ENLARGE` | also scale small pictures up to the display size |
 | `DELAY=n` | milliseconds per frame of `ANIM` (default: average of the file) |
 | `FRAMES=n` | most frames of `ANIM` to send, 1–59 (default 59; longer animations are thinned out) |
+| `SHOW=drawer` | slideshow of the pictures in a drawer, sorted by name; Ctrl-C stops it |
+| `PATTERN=pattern` | files for `SHOW`, e.g. `#?.(iff\|png)` (default all; icons are skipped) |
+| `SECONDS=n` | display time per picture of `SHOW` (default 10) |
+| `REPEAT` | start `SHOW` again after the last picture |
+| `RANDOM` | show the pictures of `SHOW` in random order (new order for every round) |
 | `TEXT=text` | draw text at `X`,`Y` (default 1,1) in `COLOR`; `*n` starts a new line |
 | `TIME` | show the current time (HH:MM) centred in `COLOR` |
 | `SCROLL=text` | scrolling text drawn by the device at `X`,`Y` (default 0,28) in `COLOR`, over the picture shown last; set one first with `FILL`, `TEST` or `TEXT` (a new picture removes all scrolling texts) |
@@ -72,13 +79,14 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `PORT`, `TIMEOUT`, `SIZE` | port (80), timeout in s (5), display size (64) |
 
 `FILL`, `TEST`, `CHARSET`, `IMAGE`, `TEXT` and `TIME` draw on top of each other; the result is
-sent once at the end (or used as the background of `ANIM`).
+sent once at the end (or used as the background of `ANIM` and `SHOW`).
 
 Examples: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
 `PixooCtl 192.168.1.50 FILL=000040 TEXT="Hello*nAmiga" COLOR=FFFF00`,
 `PixooCtl 192.168.1.50 FONT=topaz/8 TIME COLOR=00FF00`,
 `PixooCtl 192.168.1.50 IMAGE=Boing.iff TEXT=Boing!`,
-`PixooCtl 192.168.1.50 FILL=000000 ANIM=cat.gif FRAMES=20`
+`PixooCtl 192.168.1.50 FILL=000000 ANIM=cat.gif FRAMES=20`,
+`PixooCtl 192.168.1.50 SHOW=Work:Pictures PATTERN=#?.iff SECONDS=20 REPEAT`
 
 ## Building
 
