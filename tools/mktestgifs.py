@@ -2,7 +2,7 @@
 """Writes the GIF files of the host test and their expected frames.
 
 The GIFs are encoded here (own LZW encoder) so that every feature of the
-decoder in src/pixoo_image.c is exercised on purpose: global and local
+decoder in src/library/pixoo_image.c is exercised on purpose: global and local
 colour tables, transparency, the disposal methods 1, 2 and 3, interlacing,
 frames smaller than the screen, code sizes up to 12 bits with clear codes,
 and many frames. A simple compositor computes how each frame must look

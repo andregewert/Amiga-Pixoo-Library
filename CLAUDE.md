@@ -17,24 +17,26 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 
 | Datei | Inhalt |
 |---|---|
-| `src/pixoo_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge), Funktionstabelle, dünne Register-Wrapper |
-| `src/pixoo_dev.c` | portabel: Requests auf einem Handle, Antwortprüfung (`error_code`), Push mit PicID-Reset |
-| `src/pixoo_image.c` | portabel: zeilenweiser Skalierer (Flächenmittel, Alpha-Blending) und GIF-Decoder (LZW, Disposal, Interlace) |
-| `src/pixoo_core.c` | portabel: Framebuffer-Zeichnen, Base64, JSON-Bodies, HTTP-Header und -Antworten |
-| `src/pixoo_font.c` | eingebauter Pixelfont im Layout einer Amiga-`TextFont`, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
-| `src/pixoo_net.c` | TCP: bsdsocket.library (Amiga) bzw. POSIX (`PIXOO_HOST`), nicht blockierend mit `WaitSelect()` |
-| `src/pixoo_private.h` | Version (`LIBVERSION`, `LIBREVISION`, `LIBDATE`), `struct PixooHandle`, `pxd_*` |
+| `src/library/pixoo_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge), Funktionstabelle, dünne Register-Wrapper |
+| `src/library/pixoo_dev.c` | portabel: Requests auf einem Handle, Antwortprüfung (`error_code`), Push mit PicID-Reset |
+| `src/library/pixoo_image.c` | portabel: zeilenweiser Skalierer (Flächenmittel, Alpha-Blending) und GIF-Decoder (LZW, Disposal, Interlace) |
+| `src/library/pixoo_core.c` | portabel: Framebuffer-Zeichnen, Base64, JSON-Bodies, HTTP-Header und -Antworten |
+| `src/library/pixoo_font.c` | eingebauter Pixelfont im Layout einer Amiga-`TextFont`, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
+| `src/library/pixoo_net.c` | TCP: bsdsocket.library (Amiga) bzw. POSIX (`PIXOO_HOST`), nicht blockierend mit `WaitSelect()` |
+| `src/library/pixoo_private.h` | Version (`LIBVERSION`, `LIBREVISION`, `LIBDATE`), `struct PixooHandle`, `pxd_*` |
 | `include/libraries/pixoo.h` | öffentlich: Überblick, Tags, Fehlercodes, Kanäle |
 | `include/clib/pixoo_protos.h` | **von Hand** geschrieben, Referenz aller Funktionen (Doxygen) |
 | `sfd/pixoo_lib.sfd` | Schnittstelle; `include/proto`, `inline`, `fd` mit `make headers` (sfdc) erzeugt |
-| `demo/pixooctl.c` | PixooCtl, Shell-Testprogramm (ReadArgs, keine stdio) |
+| `src/pixooctl/pixooctl.c` | PixooCtl, Shell-Programm (ReadArgs, keine stdio): Befehle, Bilder, Animationen, Diashow |
 | `test/hosttest.c`, `test/mockpixoo.py` | Host-Test gegen einen Mock-Pixoo; `test/requests.expected` ist das erwartete Befehlsprotokoll |
+| `demo/PixooDemo` | Amiga-Shell-Skript, führt PixooCtl vor (`Execute PixooDemo <ip>` in seiner Schublade); `make` kopiert `demo/` nach `bin/demo/` |
+| `demo/Pictures/` | Bilder der Demo, **erzeugt** von `tools/mkdemo.py` (`make pictures`): eigene Zeichnungen, eigener ILBM-Encoder |
 | `test/*.gif`, `test/gifs.expected` | **erzeugt** von `tools/mktestgifs.py` (eigener LZW-Encoder, Referenz-Compositor, Abgleich mit Pillow) |
 
 ## Regeln
 
 - Neue Library-Funktion: in `sfd/pixoo_lib.sfd` **hinten** anfügen (LVO-Reihenfolge nie
-  ändern), in derselben Reihenfolge in `FuncTable` (`src/pixoo_lib.c`), dokumentiert in
+  ändern), in derselben Reihenfolge in `FuncTable` (`src/library/pixoo_lib.c`), dokumentiert in
   `include/clib/pixoo_protos.h`, dann `make headers`.
 - Logik gehört nach `pixoo_core.c` / `pixoo_dev.c` (portabel, ohne C-Bibliothek: die Library
   linkt ohne Startup-Code), damit `make check` sie auf dem Host testet. `pixoo_lib.c` enthält

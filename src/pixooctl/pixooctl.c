@@ -1,6 +1,6 @@
 /**
  * @file pixooctl.c
- * @brief PixooCtl: Shell test program for pixoo.library.
+ * @brief PixooCtl: Shell tool for pixoo.library.
  *
  * Usage (ReadArgs template in #TEMPLATE):
  *

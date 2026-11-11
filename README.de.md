@@ -88,13 +88,25 @@ Beispiele: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
 `PixooCtl 192.168.1.50 FILL=000000 ANIM=katze.gif FRAMES=20`,
 `PixooCtl 192.168.1.50 SHOW=Work:Bilder PATTERN=#?.iff SECONDS=20 REPEAT`
 
+## Demo
+
+Die Schublade `demo` enthält ein Shell-Skript, das die wichtigsten Funktionen von PixooCtl
+nacheinander vorführt, dazu einige Bilder (ein springender Ball, Copper-Balken, eine
+Diskette, für dieses Projekt gezeichnet). Gestartet wird es in seiner Schublade mit der
+Adresse des Pixoo:
+
+```
+CD demo
+Execute PixooDemo 192.168.1.50
+```
+
 ## Bauen
 
 Cross-Build mit [bebbos amiga-gcc](https://github.com/bebbo/amiga-gcc) unter `/opt/amiga`:
 
 ```sh
 git submodule update --init
-make            # bin/pixoo.library, bin/PixooCtl
+make            # bin/pixoo.library, bin/PixooCtl, bin/demo
 make check      # Host-Test gegen einen Mock-Pixoo (Python 3)
 make docs       # API-Referenz mit Doxygen
 ```

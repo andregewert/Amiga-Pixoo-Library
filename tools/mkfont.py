@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates src/pixoo_font.c, the built-in pixel font of pixoo.library.
+"""Generates src/library/pixoo_font.c, the built-in pixel font of pixoo.library.
 
 The glyphs are drawn below as ASCII art ('#' = pixel); the output has the
 layout of an Amiga TextFont (see generate()). Rows 0-4 are the
@@ -9,7 +9,7 @@ digits are all 3 wide so that clocks do not jump. Characters are ISO-8859-1.
 
 Own design for this project (MIT, like the library).
 
-Usage: python3 tools/mkfont.py   (writes src/pixoo_font.c)
+Usage: python3 tools/mkfont.py   (writes src/library/pixoo_font.c)
          python3 tools/mkfont.py --preview out.png  (needs Pillow)
 """
 import os
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == '--preview':
         preview(sys.argv[2])
     else:
-        out = os.path.join(ROOT, 'src', 'pixoo_font.c')
+        out = os.path.join(ROOT, 'src', 'library', 'pixoo_font.c')
         with open(out, 'w', encoding='latin-1') as f:
             f.write(generate())
         print('wrote', out)

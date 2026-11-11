@@ -88,13 +88,24 @@ Examples: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
 `PixooCtl 192.168.1.50 FILL=000000 ANIM=cat.gif FRAMES=20`,
 `PixooCtl 192.168.1.50 SHOW=Work:Pictures PATTERN=#?.iff SECONDS=20 REPEAT`
 
+## Demo
+
+The drawer `demo` holds a Shell script that shows the main features of PixooCtl one after
+the other, with a few pictures for it (a bouncing ball, copper bars, a floppy disk, drawn for
+this project). Start it in its drawer with the address of your Pixoo:
+
+```
+CD demo
+Execute PixooDemo 192.168.1.50
+```
+
 ## Building
 
 Cross build with [bebbo's amiga-gcc](https://github.com/bebbo/amiga-gcc) in `/opt/amiga`:
 
 ```sh
 git submodule update --init
-make            # bin/pixoo.library, bin/PixooCtl
+make            # bin/pixoo.library, bin/PixooCtl, bin/demo
 make check      # host test against a mock Pixoo (Python 3)
 make docs       # API reference with Doxygen
 ```
