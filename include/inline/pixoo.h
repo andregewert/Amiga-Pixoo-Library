@@ -93,4 +93,25 @@ typedef ULONG _sfdc_vararg;
       LP1(0x7e, LONG, PixooPush , struct PixooHandle *, ___handle, a0,\
       , PIXOO_BASE_NAME)
 
+#define PixooDrawText(___handle, ___x, ___y, ___text, ___rgb) \
+      LP5(0x84, LONG, PixooDrawText , struct PixooHandle *, ___handle, a0, LONG, ___x, d0, LONG, ___y, d1, CONST_STRPTR, ___text, a1, ULONG, ___rgb, d2,\
+      , PIXOO_BASE_NAME)
+
+#define PixooTextWidth(___handle, ___text) \
+      LP2(0x8a, LONG, PixooTextWidth , struct PixooHandle *, ___handle, a0, CONST_STRPTR, ___text, a1,\
+      , PIXOO_BASE_NAME)
+
+#define PixooSendTextA(___handle, ___text, ___tags) \
+      LP3(0x90, LONG, PixooSendTextA , struct PixooHandle *, ___handle, a0, CONST_STRPTR, ___text, a1, struct TagItem *, ___tags, a2,\
+      , PIXOO_BASE_NAME)
+
+#ifndef NO_INLINE_STDARG
+#define PixooSendText(___handle, ___text, ___tag1, ...) \
+    ({_sfdc_vararg _tags[] = { ___tag1, __VA_ARGS__ }; PixooSendTextA((___handle), (___text), (struct TagItem *) _tags); })
+#endif /* !NO_INLINE_STDARG */
+
+#define PixooClearText(___handle) \
+      LP1(0x96, LONG, PixooClearText , struct PixooHandle *, ___handle, a0,\
+      , PIXOO_BASE_NAME)
+
 #endif /* !_INLINE_PIXOO_H */

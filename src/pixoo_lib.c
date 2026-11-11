@@ -79,6 +79,12 @@ static void LibPixooFillRect(struct PixooHandle *h __asm("a0"), LONG x0 __asm("d
                              LONG x1 __asm("d2"), LONG y1 __asm("d3"), ULONG rgb __asm("d4"));
 static UBYTE *LibPixooGetBuffer(struct PixooHandle *h __asm("a0"), LONG *size __asm("a1"));
 static LONG LibPixooPush(struct PixooHandle *h __asm("a0"));
+static LONG LibPixooDrawText(struct PixooHandle *h __asm("a0"), LONG x __asm("d0"), LONG y __asm("d1"),
+                             CONST_STRPTR text __asm("a1"), ULONG rgb __asm("d2"));
+static LONG LibPixooTextWidth(struct PixooHandle *h __asm("a0"), CONST_STRPTR text __asm("a1"));
+static LONG LibPixooSendTextA(struct PixooHandle *h __asm("a0"), CONST_STRPTR text __asm("a1"),
+                              struct TagItem *tags __asm("a2"));
+static LONG LibPixooClearText(struct PixooHandle *h __asm("a0"));
 
 /** Function table: the four standard vectors, then the SFD order. */
 static const APTR FuncTable[] = {
@@ -103,6 +109,10 @@ static const APTR FuncTable[] = {
     (APTR)LibPixooFillRect,
     (APTR)LibPixooGetBuffer,
     (APTR)LibPixooPush,
+    (APTR)LibPixooDrawText,
+    (APTR)LibPixooTextWidth,
+    (APTR)LibPixooSendTextA,
+    (APTR)LibPixooClearText,
     (APTR)-1
 };
 
@@ -363,4 +373,43 @@ static UBYTE *LibPixooGetBuffer(struct PixooHandle *handle __asm("a0"), LONG *si
 static LONG LibPixooPush(struct PixooHandle *handle __asm("a0"))
 {
     return pxd_push(handle);
+}
+
+/** @copydoc PixooDrawText() */
+static LONG LibPixooDrawText(struct PixooHandle *handle __asm("a0"), LONG x __asm("d0"), LONG y __asm("d1"),
+                             CONST_STRPTR text __asm("a1"), ULONG rgb __asm("d2"))
+{
+    if (!handle || !text) return 0;
+    return px_text(handle->fb, handle->size, x, y, (const char *)text, rgb);
+}
+
+/** @copydoc PixooTextWidth() */
+static LONG LibPixooTextWidth(struct PixooHandle *handle __asm("a0"), CONST_STRPTR text __asm("a1"))
+{
+    return text ? px_text_width((const char *)text) : 0;
+}
+
+/** @copydoc PixooSendTextA() */
+static LONG LibPixooSendTextA(struct PixooHandle *handle __asm("a0"), CONST_STRPTR text __asm("a1"),
+                              struct TagItem *tags __asm("a2"))
+{
+    PxText t;
+
+    t.text = (const char *)text;
+    t.id = (LONG)GetTagData(PIXOOA_TextId, 0, tags);
+    t.x = (LONG)GetTagData(PIXOOA_TextX, 0, tags);
+    t.y = (LONG)GetTagData(PIXOOA_TextY, 0, tags);
+    t.dir = (LONG)GetTagData(PIXOOA_TextDir, PIXOODIR_LEFT, tags);
+    t.font = (LONG)GetTagData(PIXOOA_TextFont, 0, tags);
+    t.width = (LONG)GetTagData(PIXOOA_TextWidth, 64, tags);
+    t.speed = (LONG)GetTagData(PIXOOA_TextSpeed, 100, tags);
+    t.rgb = GetTagData(PIXOOA_TextColor, 0xFFFFFF, tags);
+    t.align = (LONG)GetTagData(PIXOOA_TextAlign, PIXOOALIGN_LEFT, tags);
+    return pxd_send_text(handle, &t);
+}
+
+/** @copydoc PixooClearText() */
+static LONG LibPixooClearText(struct PixooHandle *handle __asm("a0"))
+{
+    return pxd_simple(handle, "Draw/ClearHttpText", NULL, 0);
 }

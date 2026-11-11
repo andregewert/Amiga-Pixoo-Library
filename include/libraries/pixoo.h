@@ -93,9 +93,25 @@ struct PixooHandle;
 #define PIXOOCH_CUSTOM     3    /**< custom pages */
 /** @} */
 
+/** @name Text alignment for #PIXOOA_TextAlign */
+/** @{ */
+#define PIXOOALIGN_LEFT    1    /**< left aligned */
+#define PIXOOALIGN_CENTER  2    /**< centred */
+#define PIXOOALIGN_RIGHT   3    /**< right aligned */
+/** @} */
+
+/** @name Scroll directions for #PIXOOA_TextDir */
+/** @{ */
+#define PIXOODIR_LEFT      0    /**< text scrolls to the left */
+#define PIXOODIR_RIGHT     1    /**< text scrolls to the right */
+/** @} */
+
+/** Line height of the built-in font in pixels (5 above the baseline, 1 descender, 1 gap). */
+#define PIXOO_FONTLINE     7
+
 #ifndef PIXOO_HOST
 
-/** First tag of the library (for PixooOpenA()). */
+/** First tag of the library. */
 #define PIXOOA_Dummy       (TAG_USER + 0x50580000)
 
 /** @name Tags for PixooOpenA() */
@@ -146,6 +162,77 @@ struct PixooHandle;
  * Type: LONG. Default: 32. Valid: 1 to 1000.
  */
 #define PIXOOA_RefreshLimit (PIXOOA_Dummy + 5)
+
+/** @} */
+
+/** @name Tags for PixooSendTextA()
+ *  The parameters of the device's Draw/SendHttpText command. Ranges are
+ *  those of Divoom's description; values outside give #PIXOOERR_ARGS. */
+/** @{ */
+
+/**
+ * @brief Text slot; sending text with the same id replaces it.
+ *
+ * Type: LONG. Default: 0. Valid: 0 to 19.
+ */
+#define PIXOOA_TextId      (PIXOOA_Dummy + 10)
+
+/**
+ * @brief Left edge of the text area.
+ *
+ * Type: LONG. Default: 0. Valid: 0 to 63.
+ */
+#define PIXOOA_TextX       (PIXOOA_Dummy + 11)
+
+/**
+ * @brief Top edge of the text area.
+ *
+ * Type: LONG. Default: 0. Valid: 0 to 63.
+ */
+#define PIXOOA_TextY       (PIXOOA_Dummy + 12)
+
+/**
+ * @brief Scroll direction, #PIXOODIR_LEFT or #PIXOODIR_RIGHT.
+ *
+ * Type: LONG. Default: #PIXOODIR_LEFT.
+ */
+#define PIXOOA_TextDir     (PIXOOA_Dummy + 13)
+
+/**
+ * @brief Font of the device (not a font of the library).
+ *
+ * Type: LONG. Default: 0. Valid: 0 to 7.
+ */
+#define PIXOOA_TextFont    (PIXOOA_Dummy + 14)
+
+/**
+ * @brief Width of the text area in pixels; longer text scrolls.
+ *
+ * Type: LONG. Default: 64. Valid: 16 to 64.
+ */
+#define PIXOOA_TextWidth   (PIXOOA_Dummy + 15)
+
+/**
+ * @brief Scroll speed: milliseconds per step.
+ *
+ * Type: LONG. Default: 100. Valid: 0 to 10000.
+ */
+#define PIXOOA_TextSpeed   (PIXOOA_Dummy + 16)
+
+/**
+ * @brief Colour of the text, 0xRRGGBB.
+ *
+ * Type: ULONG. Default: 0xFFFFFF.
+ */
+#define PIXOOA_TextColor   (PIXOOA_Dummy + 17)
+
+/**
+ * @brief Alignment, #PIXOOALIGN_LEFT, #PIXOOALIGN_CENTER or
+ *        #PIXOOALIGN_RIGHT.
+ *
+ * Type: LONG. Default: #PIXOOALIGN_LEFT.
+ */
+#define PIXOOA_TextAlign   (PIXOOA_Dummy + 18)
 
 /** @} */
 

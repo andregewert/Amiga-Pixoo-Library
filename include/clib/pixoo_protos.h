@@ -229,4 +229,73 @@ LONG PixooPush(struct PixooHandle *handle);
 
 /** @} */
 
+/** @name Text */
+/** @{ */
+
+/**
+ * @brief Draw text into the framebuffer with the built-in font.
+ *
+ * The font is 5 pixels high above the baseline plus one row for
+ * descenders, proportional with one pixel between characters; the digits
+ * are all 3 pixels wide so that changing numbers (clocks) do not move.
+ * It covers ASCII and the German umlauts, sharp s and degree sign of
+ * ISO-8859-1; other characters are drawn as '?'. A newline ("\n")
+ * continues #PIXOO_FONTLINE pixels lower at @p x. Only the pixels of the
+ * glyphs are set, the background stays.
+ *
+ * @param handle The handle.
+ * @param x Left edge of the first character.
+ * @param y Top edge of the text (capitals take rows y to y+4).
+ * @param text The text (ISO-8859-1).
+ * @param rgb The colour, 0xRRGGBB.
+ * @return Width of the widest line in pixels.
+ */
+LONG PixooDrawText(struct PixooHandle *handle, LONG x, LONG y, CONST_STRPTR text, ULONG rgb);
+
+/**
+ * @brief Width of text as PixooDrawText() would draw it, e.g. to centre
+ *        it: <tt>x = (64 - PixooTextWidth(px, s)) / 2</tt>.
+ * @param handle The handle.
+ * @param text The text (ISO-8859-1).
+ * @return Width of the widest line in pixels.
+ */
+LONG PixooTextWidth(struct PixooHandle *handle, CONST_STRPTR text);
+
+/**
+ * @brief Show text rendered and scrolled by the device itself
+ *        (Draw/SendHttpText).
+ *
+ * The device draws the text over the picture last sent with PixooPush();
+ * it does not show it on the clock faces or other channels, so push a
+ * picture first. Text longer than the area scrolls by itself, without
+ * further requests. Up to 20 texts (#PIXOOA_TextId) can be shown at once.
+ *
+ * @param handle The handle.
+ * @param text The text (ISO-8859-1, sent as UTF-8; at most 511 bytes of UTF-8).
+ * @param tags #PIXOOA_TextId, #PIXOOA_TextX, #PIXOOA_TextY,
+ *             #PIXOOA_TextDir, #PIXOOA_TextFont, #PIXOOA_TextWidth,
+ *             #PIXOOA_TextSpeed, #PIXOOA_TextColor, #PIXOOA_TextAlign;
+ *             may be NULL.
+ * @return An error code.
+ */
+LONG PixooSendTextA(struct PixooHandle *handle, CONST_STRPTR text, struct TagItem *tags);
+
+/**
+ * @brief Varargs form of PixooSendTextA().
+ * @param handle The handle.
+ * @param text The text.
+ * @param tag1 First tag, the list ends with TAG_DONE.
+ * @return An error code.
+ */
+LONG PixooSendText(struct PixooHandle *handle, CONST_STRPTR text, Tag tag1, ...);
+
+/**
+ * @brief Remove all texts shown with PixooSendTextA() (Draw/ClearHttpText).
+ * @param handle The handle.
+ * @return An error code.
+ */
+LONG PixooClearText(struct PixooHandle *handle);
+
+/** @} */
+
 #endif /* CLIB_PIXOO_PROTOS_H */

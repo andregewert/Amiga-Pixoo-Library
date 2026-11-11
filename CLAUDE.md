@@ -20,6 +20,7 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 | `src/pixoo_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge), Funktionstabelle, dünne Register-Wrapper |
 | `src/pixoo_dev.c` | portabel: Requests auf einem Handle, Antwortprüfung (`error_code`), Push mit PicID-Reset |
 | `src/pixoo_core.c` | portabel: Framebuffer-Zeichnen, Base64, JSON-Bodies, HTTP-Header und -Antworten |
+| `src/pixoo_font.c` | eingebauter Pixelfont, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
 | `src/pixoo_net.c` | TCP: bsdsocket.library (Amiga) bzw. POSIX (`PIXOO_HOST`), nicht blockierend mit `WaitSelect()` |
 | `src/pixoo_private.h` | Version (`LIBVERSION`, `LIBREVISION`, `LIBDATE`), `struct PixooHandle`, `pxd_*` |
 | `include/libraries/pixoo.h` | öffentlich: Überblick, Tags, Fehlercodes, Kanäle |

@@ -21,4 +21,8 @@ PixooDrawRect(handle,x0,y0,x1,y1,rgb)(a0,d0,d1,d2,d3,d4)
 PixooFillRect(handle,x0,y0,x1,y1,rgb)(a0,d0,d1,d2,d3,d4)
 PixooGetBuffer(handle,size)(a0,a1)
 PixooPush(handle)(a0)
+PixooDrawText(handle,x,y,text,rgb)(a0,d0,d1,a1,d2)
+PixooTextWidth(handle,text)(a0,a1)
+PixooSendTextA(handle,text,tags)(a0,a1,a2)
+PixooClearText(handle)(a0)
 ##end

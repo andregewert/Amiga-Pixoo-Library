@@ -15,7 +15,7 @@ LIBFLAGS:= -nostartfiles -nostdlib
 CTLFLAGS:= $(CPU) -Os -Wall -Wextra -Wno-pointer-sign -fno-common -Iinclude -noixemul -Wl,-u,___stkinit
 
 # pixoo_lib.c must come first: it starts with "moveq #-1,d0; rts"
-LIBSRC  := src/pixoo_lib.c src/pixoo_dev.c src/pixoo_core.c src/pixoo_net.c
+LIBSRC  := src/pixoo_lib.c src/pixoo_dev.c src/pixoo_core.c src/pixoo_font.c src/pixoo_net.c
 LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
 LIBHDR  := src/pixoo_core.h src/pixoo_net.h src/pixoo_private.h include/libraries/pixoo.h
 
@@ -49,6 +49,10 @@ $(O)/PixooCtl: demo/pixooctl.c include/libraries/pixoo.h include/clib/pixoo_prot
 
 # proto, inline and fd headers from the SFD (clib/pixoo_protos.h is written
 # by hand: it is the documented reference of the functions)
+# built-in font from the ASCII art in tools/mkfont.py
+font:
+	python3 tools/mkfont.py
+
 headers: sfd/pixoo_lib.sfd
 	@mkdir -p include/proto include/inline include/fd
 	$(SFDC) --quiet --mode=proto  --target=m68k-amigaos --output=include/proto/pixoo.h sfd/pixoo_lib.sfd
@@ -60,7 +64,7 @@ headers: sfd/pixoo_lib.sfd
 # the socket code run on
 # the host too; test/hosttest talks to the mock Pixoo test/mockpixoo.py.
 HOSTCC  := cc -g -Wall -Wextra -fsanitize=address,undefined -DPIXOO_HOST -Iinclude -Isrc
-HOSTSRC := src/pixoo_dev.c src/pixoo_core.c src/pixoo_net.c
+HOSTSRC := src/pixoo_dev.c src/pixoo_core.c src/pixoo_font.c src/pixoo_net.c
 test/hosttest: test/hosttest.c $(HOSTSRC) src/pixoo_core.h src/pixoo_net.h src/pixoo_private.h include/libraries/pixoo.h
 	$(HOSTCC) -o $@ test/hosttest.c $(HOSTSRC)
 
@@ -88,4 +92,4 @@ $(eval $(call DOXYGEN_DOCS,docs-lib,pixoo.library,$(DOCVERSION),include/librarie
 clean:
 	rm -rf build bin test/hosttest
 
-.PHONY: all clean check check-update headers
+.PHONY: all clean check check-update headers font

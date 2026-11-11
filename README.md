@@ -9,8 +9,10 @@ network, plus the Shell tool **PixooCtl**. It was inspired by the Python library
 - Display on/off, brightness, channel, clock face
 - Read device settings (`Channel/GetAllConf`)
 - Send any JSON command and get the answer back
-- 64×64 framebuffer (16/32 also supported) with pixels, lines, rectangles and direct buffer
-  access; `PixooPush()` shows it on the display
+- 64×64 framebuffer (16/32 also supported) with pixels, lines, rectangles, text and direct
+  buffer access; `PixooPush()` shows it on the display
+- Built-in proportional pixel font (5 px, German umlauts, fixed-width digits for clocks)
+- Scrolling text rendered by the device itself
 - Works with any bsdsocket.library TCP/IP stack (Roadshow, AmiTCP, Miami). Plain HTTP, so no
   SSL library is needed.
 - Timeouts, and Ctrl-C interrupts network calls
@@ -25,7 +27,8 @@ network, plus the Shell tool **PixooCtl**. It was inspired by the Python library
 
 ```
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
-         CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,DEMO/K/N,CMD/K,GET/K,INFO/S
+         CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K,
+         CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
 ```
 
 | Option | Meaning |
@@ -37,13 +40,19 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `CLOCK=n` | clock face id |
 | `FILL=RRGGBB` | fill the display with one colour |
 | `TEST` | show a test pattern |
+| `CHARSET` | show all characters of the built-in font |
+| `TEXT=text` | draw text at `X`,`Y` (default 1,1) in `COLOR` and show it; `*n` starts a new line |
+| `SCROLL=text` | scrolling text drawn by the device at `X`,`Y` (default 0,28) in `COLOR` |
+| `CLEARTEXT` | remove the device's scrolling texts |
+| `X=n`, `Y=n`, `COLOR=RRGGBB` | position and colour for `TEXT` and `SCROLL` (default FFFFFF) |
 | `DEMO=n` | bouncing square for n frames, prints frames/s |
 | `CMD=json` | send a raw JSON command and print the answer |
 | `GET=key` | print one setting, e.g. `GET=Brightness` |
 | `INFO` | print all settings |
 | `PORT`, `TIMEOUT`, `SIZE` | port (80), timeout in s (5), display size (64) |
 
-Example: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`
+Examples: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
+`PixooCtl 192.168.1.50 FILL=000040 TEXT="Hello*nAmiga" COLOR=FFFF00`
 
 ## Building
 

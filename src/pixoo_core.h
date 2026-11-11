@@ -61,8 +61,8 @@ void px_str_num(PxStr *s, long n);
 /**
  * @brief Append text as a JSON string literal, with quotes and escapes.
  *
- * Bytes from 0x80 are copied unchanged (the device expects UTF-8; the
- * caller converts if needed).
+ * The text is ISO-8859-1 (Amiga); bytes from 0x80 become their UTF-8
+ * sequence, which the device expects.
  *
  * @param s The string.
  * @param t NUL-terminated text.
@@ -165,6 +165,59 @@ void px_rect(unsigned char *fb, int size, long x0, long y0, long x1, long y1, un
  */
 long px_base64(const unsigned char *src, long n, char *dst);
 
+/** @name Built-in font (pixoo_font.c, made by tools/mkfont.py) */
+/** @{ */
+
+#define PX_FONT_ROWS  6         /**< rows per glyph: 5 above the baseline, 1 descender */
+#define PX_FONT_LINE  7         /**< line advance of the built-in font */
+
+/** Glyphs: width (1-5), then PX_FONT_ROWS rows, bit 7 is the leftmost pixel. */
+extern const unsigned char px_font_glyphs[][PX_FONT_ROWS + 1];
+
+/** Glyph index for every ISO-8859-1 character (unknown ones show '?'). */
+extern const unsigned char px_font_map[256];
+
+/**
+ * @brief Draw text in the built-in font.
+ *
+ * Proportional, one pixel between characters; digits are all 3 pixels
+ * wide. A newline starts a new line PX_FONT_LINE pixels lower at @p x.
+ *
+ * @param fb The framebuffer.
+ * @param size Its width and height.
+ * @param x Left edge of the first character.
+ * @param y Top edge (capitals are rows y to y+4, descenders reach y+5).
+ * @param text ISO-8859-1 text.
+ * @param rgb The colour, 0xRRGGBB.
+ * @return Width of the widest line in pixels.
+ */
+long px_text(unsigned char *fb, int size, long x, long y, const char *text, unsigned long rgb);
+
+/**
+ * @brief Width of text in the built-in font, as px_text() would draw it.
+ * @param text ISO-8859-1 text.
+ * @return Width of the widest line in pixels.
+ */
+long px_text_width(const char *text);
+
+/** @} */
+
+/**
+ * @brief Parameters of Draw/SendHttpText (text rendered by the device).
+ */
+typedef struct PxText {
+    const char *text;       /**< ISO-8859-1 text (sent as UTF-8) */
+    long id;                /**< text slot, 0-19 */
+    long x;                 /**< left edge */
+    long y;                 /**< top edge */
+    long dir;               /**< scroll direction: 0 left, 1 right */
+    long font;              /**< device font, 0-7 */
+    long width;             /**< width of the text area, 16-64 */
+    long speed;             /**< milliseconds per scroll step */
+    long align;             /**< 1 left, 2 centre, 3 right */
+    unsigned long rgb;      /**< colour, 0xRRGGBB */
+} PxText;
+
 /** @name Requests (JSON bodies and HTTP header) */
 /** @{ */
 
@@ -186,6 +239,13 @@ void px_cmd_int(PxStr *s, const char *command, const char *key, long value);
  * @param picid Number of the picture (counter of the device).
  */
 void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid);
+
+/**
+ * @brief Body of Draw/SendHttpText.
+ * @param s Receives the body.
+ * @param t The parameters.
+ */
+void px_cmd_text(PxStr *s, const PxText *t);
 
 /**
  * @brief HTTP/1.1 header of a POST to /post.

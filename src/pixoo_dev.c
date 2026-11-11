@@ -106,6 +106,25 @@ long pxd_push(struct PixooHandle *h)
     return err;
 }
 
+long pxd_send_text(struct PixooHandle *h, const PxText *t)
+{
+    const unsigned char *p;
+    long n = 0;
+    PxStr s;
+
+    if (!h || !t->text) return PIXOOERR_ARGS;
+    for (p = (const unsigned char *)t->text; *p; p++) n += *p >= 0x80 ? 2 : 1;
+    if (n > 511 || t->id < 0 || t->id > 19 || t->x < 0 || t->x > 63 || t->y < 0 || t->y > 63 ||
+        (t->dir != 0 && t->dir != 1) || t->font < 0 || t->font > 7 ||
+        t->width < 16 || t->width > 64 || t->speed < 0 || t->speed > 10000 ||
+        t->align < 1 || t->align > 3)
+        return PIXOOERR_ARGS;
+    px_str_init(&s, h->body, h->bodycap);
+    px_cmd_text(&s, t);
+    if (s.overflow) return PIXOOERR_ARGS;
+    return pxd_request(h, h->body, s.len, 0, 0, 0);
+}
+
 const char *pxd_error_string(long error)
 {
     static const char *const msg[PIXOOERR_MAX + 1] = {

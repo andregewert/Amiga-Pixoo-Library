@@ -76,6 +76,9 @@ void px_str_json(PxStr *s, const char *t)
             px_str_add(s, "\\u00");
             str_char(s, hex[c >> 4]);
             str_char(s, hex[c & 15]);
+        } else if (c >= 0x80) {             /* ISO-8859-1 to UTF-8 */
+            str_char(s, (char)(0xC0 | (c >> 6)));
+            str_char(s, (char)(0x80 | (c & 0x3F)));
         } else
             str_char(s, (char)c);
     }
@@ -179,6 +182,38 @@ void px_rect(unsigned char *fb, int size, long x0, long y0, long x1, long y1, un
 }
 
 /* ------------------------------------------------------------------ */
+/* built-in font                                                       */
+
+long px_text(unsigned char *fb, int size, long x, long y, const char *text, unsigned long rgb)
+{
+    long cx = x, widest = 0, row, col;
+    const unsigned char *g;
+    unsigned char c, bits;
+
+    while ((c = (unsigned char)*text++)) {
+        if (c == '\n') {
+            if (cx - x - 1 > widest) widest = cx - x - 1;
+            cx = x;
+            y += PX_FONT_LINE;
+            continue;
+        }
+        g = px_font_glyphs[px_font_map[c]];
+        if (fb && cx < size && cx + g[0] > 0 && y < size && y + PX_FONT_ROWS > 0)
+            for (row = 0; row < PX_FONT_ROWS; row++)
+                for (bits = g[1 + row], col = 0; bits; bits = (unsigned char)(bits << 1), col++)
+                    if (bits & 0x80) px_set_pixel(fb, size, cx + col, y + row, rgb);
+        cx += g[0] + 1;
+    }
+    if (cx - x - 1 > widest) widest = cx - x - 1;
+    return widest;
+}
+
+long px_text_width(const char *text)
+{
+    return px_text(0, 0, 0, 0, text, 0);
+}
+
+/* ------------------------------------------------------------------ */
 /* Base64                                                              */
 
 long px_base64(const unsigned char *src, long n, char *dst)
@@ -238,6 +273,38 @@ void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid)
     } else
         s->overflow = 1;
     px_str_add(s, "\"}");
+}
+
+void px_cmd_text(PxStr *s, const PxText *t)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    char col[8];
+    int i;
+
+    col[0] = '#';
+    for (i = 0; i < 6; i++) col[1 + i] = hex[(t->rgb >> (20 - 4 * i)) & 15];
+    col[7] = 0;
+    px_str_add(s, "{\"Command\":\"Draw/SendHttpText\",\"TextId\":");
+    px_str_num(s, t->id);
+    px_str_add(s, ",\"x\":");
+    px_str_num(s, t->x);
+    px_str_add(s, ",\"y\":");
+    px_str_num(s, t->y);
+    px_str_add(s, ",\"dir\":");
+    px_str_num(s, t->dir);
+    px_str_add(s, ",\"font\":");
+    px_str_num(s, t->font);
+    px_str_add(s, ",\"TextWidth\":");
+    px_str_num(s, t->width);
+    px_str_add(s, ",\"speed\":");
+    px_str_num(s, t->speed);
+    px_str_add(s, ",\"TextString\":");
+    px_str_json(s, t->text);
+    px_str_add(s, ",\"color\":\"");
+    px_str_add(s, col);
+    px_str_add(s, "\",\"align\":");
+    px_str_num(s, t->align);
+    str_char(s, '}');
 }
 
 void px_http_header(PxStr *s, const char *host, int port, long bodylen)

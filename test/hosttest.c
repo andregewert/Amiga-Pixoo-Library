@@ -119,6 +119,19 @@ static void core_tests(void)
         for (x = 0; x < 16; x++)
             if (px_get_pixel(fb, 16, x, y)) n++;
     check(n == 36 && px_get_pixel(fb, 16, 3, 12) == 0x00FF00 && !px_get_pixel(fb, 16, 4, 4), "px_rect outline");
+    check(px_text_width("") == 0 && px_text_width("1") == 3 && px_text_width("12:34") == 3 * 4 + 1 + 4,
+          "px_text_width digits and colon");
+    check(px_text_width("ab\nMMM") == 17 && px_text_width("i") == 1, "px_text_width lines and narrow glyphs");
+    check(px_text_width("\x80") == px_text_width("?"), "unknown character as '?'");
+    px_fill(fb, 16, 0x000000);
+    n = px_text(fb, 16, 1, 1, "Hi", 0xFFFFFF);
+    check(n == 5 && px_get_pixel(fb, 16, 1, 1) == 0xFFFFFF && px_get_pixel(fb, 16, 3, 3) == 0xFFFFFF &&
+          !px_get_pixel(fb, 16, 2, 1) && px_get_pixel(fb, 16, 5, 1) && !px_get_pixel(fb, 16, 5, 2),
+          "px_text draws H and i");
+    px_text(fb, 16, -3, 14, "Wg", 0xFF);    /* clipped, must not crash */
+    px_str_init(&s, buf, sizeof(buf));
+    px_str_json(&s, "Gr\xfc\xdf" "e");
+    check(strcmp(buf, "\"Gr\xc3\xbc\xc3\x9f" "e\"") == 0, "px_str_json converts ISO-8859-1 to UTF-8");
     px_fill_rect(fb, 16, -5, 14, 100, 200, 0x0000FF);
     check(px_get_pixel(fb, 16, 0, 15) == 0xFF && px_get_pixel(fb, 16, 15, 14) == 0xFF &&
           px_get_pixel(fb, 16, 99, 99) == 0, "px_fill_rect clipped");
@@ -172,6 +185,25 @@ static void test_pattern(struct PixooHandle *h)
 }
 
 /**
+ * @brief Draw the character sheet of PixooCtl CHARSET.
+ * @param h The handle.
+ */
+static void charset(struct PixooHandle *h)
+{
+    static const char *const lines[] = {
+        "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz",
+        "0123456789:.,;", "!?\"#$%&'()*+-/", "<=>@[\\]^_`{|}~", "\xc4\xd6\xdc\xe4\xf6\xfc\xdf\xb0"
+    };
+    int i;
+
+    px_fill(h->fb, h->size, 0);
+    for (i = 0; i < 8; i++) {
+        check(px_text_width(lines[i]) <= 63, lines[i]);
+        px_text(h->fb, h->size, 1, 1 + i * (PX_FONT_LINE + 1), lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
+    }
+}
+
+/**
  * @brief Device commands against the mock.
  * @param host Host of the mock.
  * @param port Its port.
@@ -218,6 +250,17 @@ static void device_tests(const char *host, int port)
               "chunked GetAllConf");
     check(reply[0] == '{' && reply[strlen(reply) - 1] == '}', "chunked reply decoded (no chunk sizes)");
 
+    {
+        PxText t = { "Gr\xfc\xdf" "e vom Amiga", 3, 0, 40, 0, 2, 56, 50, 2, 0x12AB34 };
+        check_err(pxd_send_text(h, &t), 0, "SendHttpText");
+        t.width = 8;
+        check_err(pxd_send_text(h, &t), PIXOOERR_ARGS, "SendHttpText width 8");
+        t.width = 64;
+        t.id = 20;
+        check_err(pxd_send_text(h, &t), PIXOOERR_ARGS, "SendHttpText id 20");
+        check_err(pxd_simple(h, "Draw/ClearHttpText", 0, 0), 0, "ClearHttpText");
+    }
+
     /* refresh limit 2: reset, 1, 2, reset, 1 */
     for (i = 0; i < 3; i++) {
         px_fill(h->fb, h->size, 0x102030UL * (unsigned long)(i + 1));
@@ -234,10 +277,12 @@ static void device_tests(const char *host, int port)
     pxn_cleanup(&h->conn);
     free(h);
 
-    /* last: the test pattern stays in the PPM of the mock */
+    /* last: the character sheet stays in the PPM of the mock */
     if (!(h = open_handle(host, port, 64, 32, &err))) { check_err(err, 0, "open mock again"); return; }
     test_pattern(h);
     check_err(pxd_push(h), 0, "push test pattern 64x64");
+    charset(h);
+    check_err(pxd_push(h), 0, "push character set");
     pxn_cleanup(&h->conn);
     free(h);
 }

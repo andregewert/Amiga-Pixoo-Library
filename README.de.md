@@ -9,8 +9,10 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 - Display an/aus, Helligkeit, Kanal, Zifferblatt
 - Geräteeinstellungen auslesen (`Channel/GetAllConf`)
 - Beliebige JSON-Befehle senden und die Antwort erhalten
-- 64×64-Framebuffer (16/32 ebenfalls) mit Pixeln, Linien, Rechtecken und direktem Pufferzugriff;
-  `PixooPush()` zeigt ihn an
+- 64×64-Framebuffer (16/32 ebenfalls) mit Pixeln, Linien, Rechtecken, Text und direktem
+  Pufferzugriff; `PixooPush()` zeigt ihn an
+- Eingebauter proportionaler Pixelfont (5 px, Umlaute, gleich breite Ziffern für Uhren)
+- Lauftext, den das Gerät selbst darstellt
 - Läuft mit jedem TCP/IP-Stack mit bsdsocket.library (Roadshow, AmiTCP, Miami). Nur HTTP,
   daher keine SSL-Bibliothek nötig.
 - Timeouts; Ctrl-C bricht Netzwerkzugriffe ab
@@ -25,7 +27,8 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 
 ```
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
-         CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,DEMO/K/N,CMD/K,GET/K,INFO/S
+         CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K,
+         CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
 ```
 
 | Option | Bedeutung |
@@ -37,13 +40,19 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `CLOCK=n` | Nummer des Zifferblatts |
 | `FILL=RRGGBB` | Display mit einer Farbe füllen |
 | `TEST` | Testbild anzeigen |
+| `CHARSET` | alle Zeichen des eingebauten Fonts anzeigen |
+| `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen und anzeigen; `*n` beginnt eine neue Zeile |
+| `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR` |
+| `CLEARTEXT` | Lauftexte des Geräts entfernen |
+| `X=n`, `Y=n`, `COLOR=RRGGBB` | Position und Farbe für `TEXT` und `SCROLL` (Vorgabe FFFFFF) |
 | `DEMO=n` | springendes Quadrat für n Bilder, gibt Bilder/s aus |
 | `CMD=json` | JSON-Befehl senden und Antwort ausgeben |
 | `GET=key` | eine Einstellung ausgeben, z. B. `GET=Brightness` |
 | `INFO` | alle Einstellungen ausgeben |
 | `PORT`, `TIMEOUT`, `SIZE` | Port (80), Timeout in s (5), Displaygröße (64) |
 
-Beispiel: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`
+Beispiele: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
+`PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" COLOR=FFFF00`
 
 ## Bauen
 

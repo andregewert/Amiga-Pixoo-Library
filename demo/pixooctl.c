@@ -9,6 +9,8 @@
  * PixooCtl 192.168.1.50 OFF
  * PixooCtl 192.168.1.50 FILL=FF8000
  * PixooCtl 192.168.1.50 TEST
+ * PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" X=2 Y=2 COLOR=FFFF00
+ * PixooCtl 192.168.1.50 SCROLL="Lauftext vom Pixoo selbst" Y=28
  * PixooCtl 192.168.1.50 DEMO=100
  * PixooCtl 192.168.1.50 GET=Brightness
  * PixooCtl 192.168.1.50 CMD={"Command":"Channel/GetAllConf"}
@@ -37,17 +39,22 @@ struct Library *PixooBase = NULL;       /**< pixoo.library */
 
 /** ReadArgs template. */
 #define TEMPLATE "HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N," \
-                 "CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,DEMO/K/N,CMD/K,GET/K,INFO/S"
+                 "CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
+                 "CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S"
 
 /** Positions of the arguments in the ReadArgs array. */
 enum {
     ARG_HOST, ARG_PORT, ARG_TIMEOUT, ARG_SIZE, ARG_ON, ARG_OFF, ARG_BRIGHTNESS,
-    ARG_CHANNEL, ARG_CLOCK, ARG_FILL, ARG_TEST, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
+    ARG_CHANNEL, ARG_CLOCK, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
+    ARG_CLEARTEXT, ARG_SCROLL, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
     ARG_COUNT       /**< number of arguments */
 };
 
 /** Answer buffer for CMD and INFO. */
 static char Reply[2048];
+
+/** TEXT argument with "*n" turned into newlines. */
+static char TextBuf[512];
 
 /**
  * @brief Print the outcome of a step.
@@ -123,6 +130,45 @@ static LONG test_pattern(struct PixooHandle *px)
 }
 
 /**
+ * @brief Show all characters of the built-in font and push them.
+ * @param px The handle.
+ * @return An error code.
+ */
+static LONG charset(struct PixooHandle *px)
+{
+    static const char *const lines[] = {
+        "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz",
+        "0123456789:.,;", "!?\"#$%&'()*+-/", "<=>@[\\]^_`{|}~", "\xc4\xd6\xdc\xe4\xf6\xfc\xdf\xb0"
+    };
+    LONG i;
+
+    PixooFill(px, 0x000000);
+    for (i = 0; i < 8; i++)
+        PixooDrawText(px, 1, 1 + i * (PIXOO_FONTLINE + 1), (CONST_STRPTR)lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
+    return PixooPush(px);
+}
+
+/**
+ * @brief Copy a ReadArgs string and turn "*n" into a newline (the Shell
+ *        has no other way to pass one).
+ * @param[out] dst The destination.
+ * @param src The argument.
+ * @param cap Size of @p dst.
+ */
+static void unescape(char *dst, const char *src, LONG cap)
+{
+    while (*src && cap > 1) {
+        if (src[0] == '*' && (src[1] == 'n' || src[1] == 'N')) {
+            *dst++ = '\n';
+            src += 2;
+        } else
+            *dst++ = *src++;
+        cap--;
+    }
+    *dst = 0;
+}
+
+/**
  * @brief Bouncing square for a number of frames; prints the frame rate.
  * @param px The handle.
  * @param frames Number of frames.
@@ -173,8 +219,9 @@ int main(void)
     LONG args[ARG_COUNT] = { 0 };
     struct RDArgs *rda;
     struct PixooHandle *px;
-    LONG err, rc = RETURN_OK, v;
-    ULONG rgb;
+    LONG err, rc = RETURN_OK, v, x, y;
+    ULONG rgb, color = 0xFFFFFF;
+    BOOL pushed = FALSE;
 
     (void)VersTag;
     if (!(rda = ReadArgs((STRPTR)TEMPLATE, args, NULL))) {
@@ -201,6 +248,14 @@ int main(void)
         return RETURN_FAIL;
     }
 
+    x = args[ARG_X] ? *(LONG *)args[ARG_X] : -1;
+    y = args[ARG_Y] ? *(LONG *)args[ARG_Y] : -1;
+    if (args[ARG_COLOR] && !parse_rgb((const char *)args[ARG_COLOR], &color)) {
+        Printf("PixooCtl: COLOR needs a colour as RRGGBB, e.g. COLOR=FFFF00\n");
+        rc = RETURN_FAIL;
+        goto done;
+    }
+
     if (args[ARG_ON]) STEP("Screen on", PixooSetScreen(px, TRUE));
     if (args[ARG_OFF]) STEP("Screen off", PixooSetScreen(px, FALSE));
     if (args[ARG_BRIGHTNESS]) STEP("Brightness", PixooSetBrightness(px, *(LONG *)args[ARG_BRIGHTNESS]));
@@ -214,8 +269,26 @@ int main(void)
         }
         PixooFill(px, rgb);
         STEP("Fill", PixooPush(px));
+        pushed = TRUE;
     }
-    if (args[ARG_TEST]) STEP("Test pattern", test_pattern(px));
+    if (args[ARG_TEST]) { STEP("Test pattern", test_pattern(px)); pushed = TRUE; }
+    if (args[ARG_CHARSET]) { STEP("Character set", charset(px)); pushed = TRUE; }
+    if (args[ARG_TEXT]) {
+        unescape(TextBuf, (const char *)args[ARG_TEXT], sizeof(TextBuf));
+        PixooDrawText(px, x >= 0 ? x : 1, y >= 0 ? y : 1, (CONST_STRPTR)TextBuf, color);
+        STEP("Text", PixooPush(px));
+        pushed = TRUE;
+    }
+    if (args[ARG_CLEARTEXT]) STEP("Clear text", PixooClearText(px));
+    if (args[ARG_SCROLL]) {
+        /* the device shows its text only over a picture sent with PixooPush() */
+        if (!pushed) STEP("Background", PixooPush(px));
+        STEP("Scroll text", PixooSendText(px, (CONST_STRPTR)args[ARG_SCROLL],
+                                          PIXOOA_TextX, x >= 0 ? x : 0,
+                                          PIXOOA_TextY, y >= 0 ? y : 28,
+                                          PIXOOA_TextColor, color,
+                                          TAG_DONE));
+    }
     if (args[ARG_DEMO]) STEP("Demo", demo(px, *(LONG *)args[ARG_DEMO]));
     if (args[ARG_CMD]) {
         err = PixooSendCommand(px, (CONST_STRPTR)args[ARG_CMD], (STRPTR)Reply, sizeof(Reply));

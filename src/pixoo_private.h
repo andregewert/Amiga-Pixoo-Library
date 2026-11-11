@@ -111,6 +111,17 @@ long pxd_get_config(struct PixooHandle *h, const char *key, long *value);
 long pxd_push(struct PixooHandle *h);
 
 /**
+ * @brief PixooSendTextA(): checks the parameters and sends the text.
+ *
+ * Builds the request in the handle's body buffer (no large stack use).
+ *
+ * @param h The handle.
+ * @param t The parameters.
+ * @return An error code.
+ */
+long pxd_send_text(struct PixooHandle *h, const PxText *t);
+
+/**
  * @brief PixooErrorString().
  * @param error The error code.
  * @return A static text.
