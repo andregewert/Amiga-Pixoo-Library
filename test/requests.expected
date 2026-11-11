@@ -11,7 +11,7 @@ Channel/GetAllConf
 Test/Big
 Test/Plain
 Channel/GetAllConf
-Draw/SendHttpText TextId=3 TextString="Gr\u00fc\u00dfe vom Amiga" TextWidth=56 align=2 color="#12AB34" dir=0 font=2 speed=50 x=0 y=40
+Draw/SendHttpText TextId=3 TextString="Gr\u00fc\u00dfe vom Amiga" TextWidth=56 align=2 color="#12AB34" dir=1 font=2 speed=50 x=0 y=40
 Draw/ClearHttpText
 Draw/ResetHttpGifId
 Draw/SendHttpGif PicData=12288 bytes crc df932cac PicID=1 PicNum=1 PicOffset=0 PicSpeed=1000 PicWidth=64

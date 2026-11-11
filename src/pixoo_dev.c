@@ -116,7 +116,7 @@ long pxd_send_text(struct PixooHandle *h, const PxText *t)
     for (p = (const unsigned char *)t->text; *p; p++) n += *p >= 0x80 ? 2 : 1;
     if (n > 511 || t->id < 0 || t->id > 19 || t->x < 0 || t->x > 63 || t->y < 0 || t->y > 63 ||
         (t->dir != 0 && t->dir != 1) || t->font < 0 || t->font > 7 ||
-        t->width < 16 || t->width > 64 || t->speed < 0 || t->speed > 10000 ||
+        t->width < 16 || t->width > 64 || t->speed < 0 || t->speed > 100 ||
         t->align < 1 || t->align > 3)
         return PIXOOERR_ARGS;
     px_str_init(&s, h->body, h->bodycap);

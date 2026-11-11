@@ -168,7 +168,8 @@ struct PixooHandle;
 
 /** @name Tags for PixooSendTextA()
  *  The parameters of the device's Draw/SendHttpText command. Ranges are
- *  those of Divoom's description; values outside give #PIXOOERR_ARGS. */
+ *  those of Divoom's description or, where noted, observed on a Pixoo 64;
+ *  values outside give #PIXOOERR_ARGS. */
 /** @{ */
 
 /**
@@ -195,12 +196,20 @@ struct PixooHandle;
 /**
  * @brief Scroll direction, #PIXOODIR_LEFT or #PIXOODIR_RIGHT.
  *
+ * Sent as documented by Divoom ("dir": 0 left, 1 right), but the firmware
+ * of a Pixoo 64 tested (November 2026) ignored it and always scrolled to
+ * the left.
+ *
  * Type: LONG. Default: #PIXOODIR_LEFT.
  */
 #define PIXOOA_TextDir     (PIXOOA_Dummy + 13)
 
 /**
  * @brief Font of the device (not a font of the library).
+ *
+ * One of the device's animation fonts; the text is 16 pixels high.
+ * Amiga fonts cannot be used for device text, see PixooSetFont() for
+ * text in the framebuffer instead.
  *
  * Type: LONG. Default: 0. Valid: 0 to 7.
  */
@@ -214,9 +223,13 @@ struct PixooHandle;
 #define PIXOOA_TextWidth   (PIXOOA_Dummy + 15)
 
 /**
- * @brief Scroll speed: milliseconds per step.
+ * @brief Scroll speed: milliseconds per step (smaller is faster).
  *
- * Type: LONG. Default: 100. Valid: 0 to 10000.
+ * Divoom documents no limit, but a Pixoo 64 shows no text at all for
+ * values above 100 although it answers error_code 0, so larger values are
+ * refused.
+ *
+ * Type: LONG. Default: 100. Valid: 0 to 100.
  */
 #define PIXOOA_TextSpeed   (PIXOOA_Dummy + 16)
 
@@ -230,6 +243,9 @@ struct PixooHandle;
 /**
  * @brief Alignment, #PIXOOALIGN_LEFT, #PIXOOALIGN_CENTER or
  *        #PIXOOALIGN_RIGHT.
+ *
+ * Only has an effect on text narrower than #PIXOOA_TextWidth; longer
+ * text scrolls.
  *
  * Type: LONG. Default: #PIXOOALIGN_LEFT.
  */

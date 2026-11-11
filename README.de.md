@@ -29,7 +29,8 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 ```
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
          CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
-         COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
+         COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
+         SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S
 ```
 
 | Option | Bedeutung |
@@ -45,7 +46,13 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `CHARSET` | alle Zeichen des aktuellen Fonts anzeigen |
 | `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen und anzeigen; `*n` beginnt eine neue Zeile |
 | `TIME` | aktuelle Uhrzeit (HH:MM) zentriert in `COLOR` anzeigen |
-| `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR` |
+| `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR`, über dem zuletzt gesendeten Bild; das vorher mit `FILL`, `TEST` oder `TEXT` setzen (ein neues Bild entfernt alle Lauftexte) |
+| `TEXTID=n` | Nummer des Lauftexts, 0–19 (Vorgabe 0); eine andere Nummer fügt einen zweiten Text hinzu |
+| `DEVFONT=n` | Font des Geräts für `SCROLL`, 0–7 (Vorgabe 0); Amiga-Fonts sind hier nicht möglich |
+| `WIDTH=n` | Breite des Laufbereichs, 16–64 (Vorgabe 64) |
+| `SPEED=n` | Millisekunden pro Schritt, 0–100 (Vorgabe 100; kleiner ist schneller) |
+| `DIR=LEFT\|RIGHT` | Laufrichtung (Vorgabe LEFT; von der getesteten Pixoo-64-Firmware ignoriert) |
+| `ALIGN=LEFT\|CENTER\|RIGHT` | Ausrichtung im Textbereich (Vorgabe LEFT) |
 | `CLEARTEXT` | Lauftexte des Geräts entfernen |
 | `X=n`, `Y=n`, `COLOR=RRGGBB` | Position und Farbe für `TEXT` und `SCROLL` (Vorgabe FFFFFF) |
 | `DEMO=n` | springendes Quadrat für n Bilder, gibt Bilder/s aus |

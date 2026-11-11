@@ -274,8 +274,11 @@ LONG PixooTextWidth(struct PixooHandle *handle, CONST_STRPTR text);
  *
  * The device draws the text over the picture last sent with PixooPush();
  * it does not show it on the clock faces or other channels, so push a
- * picture first. Text longer than the area scrolls by itself, without
+ * picture first. Every later PixooPush() removes all texts, so send them
+ * after the picture. Text longer than the area scrolls by itself, without
  * further requests. Up to 20 texts (#PIXOOA_TextId) can be shown at once.
+ * The device draws them in its own fonts (#PIXOOA_TextFont, 16 pixels
+ * high), not in the font of PixooSetFont().
  *
  * @param handle The handle.
  * @param text The text (ISO-8859-1, sent as UTF-8; at most 511 bytes of UTF-8).

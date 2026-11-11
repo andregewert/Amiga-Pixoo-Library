@@ -29,7 +29,8 @@ network, plus the Shell tool **PixooCtl**. It was inspired by the Python library
 ```
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
          CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
-         COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
+         COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
+         SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S
 ```
 
 | Option | Meaning |
@@ -45,7 +46,13 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `CHARSET` | show all characters of the current font |
 | `TEXT=text` | draw text at `X`,`Y` (default 1,1) in `COLOR` and show it; `*n` starts a new line |
 | `TIME` | show the current time (HH:MM) centred in `COLOR` |
-| `SCROLL=text` | scrolling text drawn by the device at `X`,`Y` (default 0,28) in `COLOR` |
+| `SCROLL=text` | scrolling text drawn by the device at `X`,`Y` (default 0,28) in `COLOR`, over the picture shown last; set one first with `FILL`, `TEST` or `TEXT` (a new picture removes all scrolling texts) |
+| `TEXTID=n` | slot of the scrolling text, 0–19 (default 0); another id adds a second text |
+| `DEVFONT=n` | font of the device for `SCROLL`, 0–7 (default 0); Amiga fonts cannot be used here |
+| `WIDTH=n` | width of the scrolling area, 16–64 (default 64) |
+| `SPEED=n` | milliseconds per scroll step, 0–100 (default 100; smaller is faster) |
+| `DIR=LEFT\|RIGHT` | scroll direction (default LEFT; ignored by the Pixoo 64 firmware tested) |
+| `ALIGN=LEFT\|CENTER\|RIGHT` | alignment within the text area (default LEFT) |
 | `CLEARTEXT` | remove the device's scrolling texts |
 | `X=n`, `Y=n`, `COLOR=RRGGBB` | position and colour for `TEXT` and `SCROLL` (default FFFFFF) |
 | `DEMO=n` | bouncing square for n frames, prints frames/s |

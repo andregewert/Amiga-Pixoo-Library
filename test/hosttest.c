@@ -297,11 +297,14 @@ static void device_tests(const char *host, int port)
     check(reply[0] == '{' && reply[strlen(reply) - 1] == '}', "chunked reply decoded (no chunk sizes)");
 
     {
-        PxText t = { "Gr\xfc\xdf" "e vom Amiga", 3, 0, 40, 0, 2, 56, 50, 2, 0x12AB34 };
+        PxText t = { "Gr\xfc\xdf" "e vom Amiga", 3, 0, 40, 1, 2, 56, 50, 2, 0x12AB34 };
         check_err(pxd_send_text(h, &t), 0, "SendHttpText");
         t.width = 8;
         check_err(pxd_send_text(h, &t), PIXOOERR_ARGS, "SendHttpText width 8");
         t.width = 64;
+        t.speed = 101;
+        check_err(pxd_send_text(h, &t), PIXOOERR_ARGS, "SendHttpText speed 101");
+        t.speed = 50;
         t.id = 20;
         check_err(pxd_send_text(h, &t), PIXOOERR_ARGS, "SendHttpText id 20");
         check_err(pxd_simple(h, "Draw/ClearHttpText", 0, 0), 0, "ClearHttpText");

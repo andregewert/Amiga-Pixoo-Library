@@ -10,7 +10,8 @@
  * PixooCtl 192.168.1.50 FILL=FF8000
  * PixooCtl 192.168.1.50 TEST
  * PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" X=2 Y=2 COLOR=FFFF00
- * PixooCtl 192.168.1.50 SCROLL="Lauftext vom Pixoo selbst" Y=28
+ * PixooCtl 192.168.1.50 FILL=000020 SCROLL="Lauftext vom Pixoo selbst" Y=10
+ * PixooCtl 192.168.1.50 SCROLL="Zweiter Text" Y=40 DEVFONT=2 SPEED=30 TEXTID=1
  * PixooCtl 192.168.1.50 FONT=SevenAlone/7 TEXT="Mit Diskfont"
  * PixooCtl 192.168.1.50 FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
  * PixooCtl 192.168.1.50 DEMO=100
@@ -50,13 +51,15 @@ struct Library *DiskfontBase = NULL;    /**< diskfont.library, only for FONT */
 /** ReadArgs template. */
 #define TEMPLATE "HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N," \
                  "CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
-                 "TIME/S,CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S"
+                 "TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,SPEED/K/N,DIR/K,ALIGN/K," \
+                 "DEMO/K/N,CMD/K,GET/K,INFO/S"
 
 /** Positions of the arguments in the ReadArgs array. */
 enum {
     ARG_HOST, ARG_PORT, ARG_TIMEOUT, ARG_SIZE, ARG_ON, ARG_OFF, ARG_BRIGHTNESS,
     ARG_CHANNEL, ARG_CLOCK, ARG_FONT, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
-    ARG_TIME, ARG_CLEARTEXT, ARG_SCROLL, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
+    ARG_TIME, ARG_CLEARTEXT, ARG_SCROLL, ARG_TEXTID, ARG_DEVFONT, ARG_WIDTH, ARG_SPEED, ARG_DIR,
+    ARG_ALIGN, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
     ARG_COUNT       /**< number of arguments */
 };
 
@@ -203,6 +206,30 @@ static int same_name(const char *a, const char *b)
         if (cb >= 'A' && cb <= 'Z') cb += 'a' - 'A';
     } while (ca && ca == cb);
     return ca == cb;
+}
+
+/**
+ * @brief Parse a keyword or its number (DIR, ALIGN).
+ * @param arg The argument.
+ * @param names Keywords, NULL-terminated; values[i] belongs to names[i].
+ * @param values Their values.
+ * @param lo Smallest number accepted instead of a keyword.
+ * @param hi Largest number accepted.
+ * @param[out] value Receives the value.
+ * @return Non-zero if the argument is valid.
+ */
+static int parse_choice(const char *arg, const char *const *names, const LONG *values, LONG lo, LONG hi,
+                        LONG *value)
+{
+    LONG i;
+
+    for (i = 0; names[i]; i++)
+        if (same_name(arg, names[i])) {
+            *value = values[i];
+            return 1;
+        }
+    if (StrToLong((STRPTR)arg, value) > 0 && *value >= lo && *value <= hi) return 1;
+    return 0;
 }
 
 /**
@@ -365,7 +392,11 @@ int main(void)
     struct PixooHandle *px;
     LONG err, rc = RETURN_OK, v, x, y;
     ULONG rgb, color = 0xFFFFFF;
-    BOOL pushed = FALSE;
+    LONG dir = PIXOODIR_LEFT, align = PIXOOALIGN_LEFT;
+    static const char *const dirnames[] = { "LEFT", "RIGHT", NULL };
+    static const LONG dirvalues[] = { PIXOODIR_LEFT, PIXOODIR_RIGHT };
+    static const char *const alignnames[] = { "LEFT", "CENTER", "CENTRE", "RIGHT", NULL };
+    static const LONG alignvalues[] = { PIXOOALIGN_LEFT, PIXOOALIGN_CENTER, PIXOOALIGN_CENTER, PIXOOALIGN_RIGHT };
     struct TextFont *font = NULL;
 
     (void)VersTag;
@@ -407,6 +438,17 @@ int main(void)
         goto done;
     }
 
+    if (args[ARG_DIR] && !parse_choice((const char *)args[ARG_DIR], dirnames, dirvalues, 0, 1, &dir)) {
+        Printf("PixooCtl: DIR must be LEFT or RIGHT\n");
+        rc = RETURN_FAIL;
+        goto done;
+    }
+    if (args[ARG_ALIGN] && !parse_choice((const char *)args[ARG_ALIGN], alignnames, alignvalues, 1, 3, &align)) {
+        Printf("PixooCtl: ALIGN must be LEFT, CENTER or RIGHT\n");
+        rc = RETURN_FAIL;
+        goto done;
+    }
+
     if (args[ARG_FONT]) {
         if (!(font = open_font((const char *)args[ARG_FONT]))) {
             rc = RETURN_FAIL;
@@ -428,25 +470,35 @@ int main(void)
         }
         PixooFill(px, rgb);
         STEP("Fill", PixooPush(px));
-        pushed = TRUE;
     }
-    if (args[ARG_TEST]) { STEP("Test pattern", test_pattern(px)); pushed = TRUE; }
-    if (args[ARG_CHARSET]) { STEP("Character set", charset(px)); pushed = TRUE; }
+    if (args[ARG_TEST]) STEP("Test pattern", test_pattern(px));
+    if (args[ARG_CHARSET]) STEP("Character set", charset(px));
     if (args[ARG_TEXT]) {
         unescape(TextBuf, (const char *)args[ARG_TEXT], sizeof(TextBuf));
         PixooDrawText(px, x >= 0 ? x : 1, y >= 0 ? y : 1, (CONST_STRPTR)TextBuf, color);
         STEP("Text", PixooPush(px));
-        pushed = TRUE;
     }
-    if (args[ARG_TIME]) { STEP("Time", show_time(px, color)); pushed = TRUE; }
+    if (args[ARG_TIME]) STEP("Time", show_time(px, color));
     if (args[ARG_CLEARTEXT]) STEP("Clear text", PixooClearText(px));
     if (args[ARG_SCROLL]) {
-        /* the device shows its text only over a picture sent with PixooPush() */
-        if (!pushed) STEP("Background", PixooPush(px));
+        /* No picture is pushed here: every Draw/SendHttpGif removes all
+         * texts of the device, so a second SCROLL call (another TEXTID)
+         * would wipe the first. The text needs a picture sent before
+         * (FILL, TEST, TEXT ... in this or an earlier call).          */
         STEP("Scroll text", PixooSendText(px, (CONST_STRPTR)args[ARG_SCROLL],
                                           PIXOOA_TextX, x >= 0 ? x : 0,
                                           PIXOOA_TextY, y >= 0 ? y : 28,
                                           PIXOOA_TextColor, color,
+                                          PIXOOA_TextDir, dir,
+                                          PIXOOA_TextAlign, align,
+                                          args[ARG_TEXTID] ? PIXOOA_TextId : TAG_IGNORE,
+                                          args[ARG_TEXTID] ? *(LONG *)args[ARG_TEXTID] : 0,
+                                          args[ARG_DEVFONT] ? PIXOOA_TextFont : TAG_IGNORE,
+                                          args[ARG_DEVFONT] ? *(LONG *)args[ARG_DEVFONT] : 0,
+                                          args[ARG_WIDTH] ? PIXOOA_TextWidth : TAG_IGNORE,
+                                          args[ARG_WIDTH] ? *(LONG *)args[ARG_WIDTH] : 0,
+                                          args[ARG_SPEED] ? PIXOOA_TextSpeed : TAG_IGNORE,
+                                          args[ARG_SPEED] ? *(LONG *)args[ARG_SPEED] : 0,
                                           TAG_DONE));
     }
     if (args[ARG_DEMO]) STEP("Demo", demo(px, *(LONG *)args[ARG_DEMO]));
