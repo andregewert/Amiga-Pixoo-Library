@@ -25,4 +25,6 @@ PixooDrawText(handle,x,y,text,rgb)(a0,d0,d1,a1,d2)
 PixooTextWidth(handle,text)(a0,a1)
 PixooSendTextA(handle,text,tags)(a0,a1,a2)
 PixooClearText(handle)(a0)
+PixooSetFont(handle,font)(a0,a1)
+PixooFontHeight(handle,baseline)(a0,a1)
 ##end

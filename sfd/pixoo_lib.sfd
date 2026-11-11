@@ -7,6 +7,7 @@
 ==public
 ==include <exec/types.h>
 ==include <utility/tagitem.h>
+==include <graphics/text.h>
 ==include <libraries/pixoo.h>
 struct PixooHandle * PixooOpenA(CONST_STRPTR host, struct TagItem * tags) (a0,a1)
 ==varargs
@@ -33,4 +34,6 @@ LONG PixooSendTextA(struct PixooHandle * handle, CONST_STRPTR text, struct TagIt
 ==varargs
 LONG PixooSendText(struct PixooHandle * handle, CONST_STRPTR text, Tag tag1, ...) (a0,a1,a2)
 LONG PixooClearText(struct PixooHandle * handle) (a0)
+struct TextFont * PixooSetFont(struct PixooHandle * handle, struct TextFont * font) (a0,a1)
+LONG PixooFontHeight(struct PixooHandle * handle, LONG * baseline) (a0,a1)
 ==end

@@ -21,6 +21,7 @@
 #include <exec/execbase.h>
 #include <dos/dos.h>
 #include <utility/tagitem.h>
+#include <graphics/text.h>
 
 #include <proto/exec.h>
 #include <proto/utility.h>
@@ -85,6 +86,8 @@ static LONG LibPixooTextWidth(struct PixooHandle *h __asm("a0"), CONST_STRPTR te
 static LONG LibPixooSendTextA(struct PixooHandle *h __asm("a0"), CONST_STRPTR text __asm("a1"),
                               struct TagItem *tags __asm("a2"));
 static LONG LibPixooClearText(struct PixooHandle *h __asm("a0"));
+static struct TextFont *LibPixooSetFont(struct PixooHandle *h __asm("a0"), struct TextFont *font __asm("a1"));
+static LONG LibPixooFontHeight(struct PixooHandle *h __asm("a0"), LONG *baseline __asm("a1"));
 
 /** Function table: the four standard vectors, then the SFD order. */
 static const APTR FuncTable[] = {
@@ -113,6 +116,8 @@ static const APTR FuncTable[] = {
     (APTR)LibPixooTextWidth,
     (APTR)LibPixooSendTextA,
     (APTR)LibPixooClearText,
+    (APTR)LibPixooSetFont,
+    (APTR)LibPixooFontHeight,
     (APTR)-1
 };
 
@@ -380,13 +385,14 @@ static LONG LibPixooDrawText(struct PixooHandle *handle __asm("a0"), LONG x __as
                              CONST_STRPTR text __asm("a1"), ULONG rgb __asm("d2"))
 {
     if (!handle || !text) return 0;
-    return px_text(handle->fb, handle->size, x, y, (const char *)text, rgb);
+    return px_text(handle->fb, handle->size, handle->font, x, y, (const char *)text, rgb);
 }
 
 /** @copydoc PixooTextWidth() */
 static LONG LibPixooTextWidth(struct PixooHandle *handle __asm("a0"), CONST_STRPTR text __asm("a1"))
 {
-    return text ? px_text_width((const char *)text) : 0;
+    if (!handle || !text) return 0;
+    return px_text_width(handle->font, (const char *)text);
 }
 
 /** @copydoc PixooSendTextA() */
@@ -412,4 +418,55 @@ static LONG LibPixooSendTextA(struct PixooHandle *handle __asm("a0"), CONST_STRP
 static LONG LibPixooClearText(struct PixooHandle *handle __asm("a0"))
 {
     return pxd_simple(handle, "Draw/ClearHttpText", NULL, 0);
+}
+
+/** @copydoc PixooSetFont() */
+static struct TextFont *LibPixooSetFont(struct PixooHandle *handle __asm("a0"), struct TextFont *font __asm("a1"))
+{
+    struct TextFont *old;
+    PxFont *f;
+    int i;
+
+    if (!handle) return NULL;
+    old = (struct TextFont *)handle->textfont;
+    if (!font) {
+        handle->font = &px_builtin_font;
+        handle->textfont = NULL;
+        return old;
+    }
+    f = &handle->diskfont;
+    for (i = 0; i < 8; i++) f->planes[i] = NULL;
+    f->nplanes = 0;
+    if (font->tf_Style & FSF_COLORFONT) {
+        /* all planes with data; a pixel counts if it is set in any */
+        struct ColorTextFont *ctf = (struct ColorTextFont *)font;
+        for (i = 0; i < 8; i++)
+            if (ctf->ctf_CharData[i]) f->planes[f->nplanes++] = (const unsigned char *)ctf->ctf_CharData[i];
+    }
+    if (!f->nplanes) {
+        f->planes[0] = (const unsigned char *)font->tf_CharData;
+        f->nplanes = 1;
+    }
+    f->modulo = font->tf_Modulo;
+    f->ysize = font->tf_YSize;
+    f->baseline = font->tf_Baseline;
+    f->xsize = font->tf_XSize;
+    f->lochar = font->tf_LoChar;
+    f->hichar = font->tf_HiChar;
+    f->proportional = (font->tf_Flags & FPF_PROPORTIONAL) != 0;
+    f->charloc = (const unsigned char *)font->tf_CharLoc;
+    f->charspace = (const unsigned char *)font->tf_CharSpace;
+    f->charkern = (const unsigned char *)font->tf_CharKern;
+    handle->font = f;
+    handle->textfont = font;
+    return old;
+}
+
+/** @copydoc PixooFontHeight() */
+static LONG LibPixooFontHeight(struct PixooHandle *handle __asm("a0"), LONG *baseline __asm("a1"))
+{
+    const PxFont *f = handle ? handle->font : &px_builtin_font;
+
+    if (baseline) *baseline = f->baseline;
+    return f->ysize;
 }

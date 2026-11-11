@@ -11,6 +11,8 @@
  * PixooCtl 192.168.1.50 TEST
  * PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" X=2 Y=2 COLOR=FFFF00
  * PixooCtl 192.168.1.50 SCROLL="Lauftext vom Pixoo selbst" Y=28
+ * PixooCtl 192.168.1.50 FONT=SevenAlone/7 TEXT="Mit Diskfont"
+ * PixooCtl 192.168.1.50 FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
  * PixooCtl 192.168.1.50 DEMO=100
  * PixooCtl 192.168.1.50 GET=Brightness
  * PixooCtl 192.168.1.50 CMD={"Command":"Channel/GetAllConf"}
@@ -25,8 +27,14 @@
 #include <exec/types.h>
 #include <dos/dos.h>
 #include <dos/rdargs.h>
+#include <dos/datetime.h>
+#include <exec/memory.h>
+#include <graphics/text.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
+#include <proto/graphics.h>
+#include <diskfont/diskfont.h>
+#include <proto/diskfont.h>
 #include <proto/pixoo.h>
 
 /** Version string for the Version command. */
@@ -36,17 +44,19 @@ static const char VersTag[] = "$VER: PixooCtl 1.0 (11.11.2026)";
 unsigned long __stack = 16384;
 
 struct Library *PixooBase = NULL;       /**< pixoo.library */
+struct GfxBase *GfxBase = NULL;         /**< graphics.library (CloseFont) */
+struct Library *DiskfontBase = NULL;    /**< diskfont.library, only for FONT */
 
 /** ReadArgs template. */
 #define TEMPLATE "HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N," \
-                 "CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
-                 "CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S"
+                 "CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
+                 "TIME/S,CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S"
 
 /** Positions of the arguments in the ReadArgs array. */
 enum {
     ARG_HOST, ARG_PORT, ARG_TIMEOUT, ARG_SIZE, ARG_ON, ARG_OFF, ARG_BRIGHTNESS,
-    ARG_CHANNEL, ARG_CLOCK, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
-    ARG_CLEARTEXT, ARG_SCROLL, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
+    ARG_CHANNEL, ARG_CLOCK, ARG_FONT, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
+    ARG_TIME, ARG_CLEARTEXT, ARG_SCROLL, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
     ARG_COUNT       /**< number of arguments */
 };
 
@@ -140,12 +150,146 @@ static LONG charset(struct PixooHandle *px)
         "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz",
         "0123456789:.,;", "!?\"#$%&'()*+-/", "<=>@[\\]^_`{|}~", "\xc4\xd6\xdc\xe4\xf6\xfc\xdf\xb0"
     };
-    LONG i;
+    LONG i, line = PixooFontHeight(px, NULL) + 1;
 
     PixooFill(px, 0x000000);
     for (i = 0; i < 8; i++)
-        PixooDrawText(px, 1, 1 + i * (PIXOO_FONTLINE + 1), (CONST_STRPTR)lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
+        PixooDrawText(px, 1, 1 + i * line, (CONST_STRPTR)lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
     return PixooPush(px);
+}
+
+/**
+ * @brief Draw the current time (HH:MM) centred in the current font and
+ *        push it.
+ * @param px The handle.
+ * @param rgb The colour.
+ * @return An error code.
+ */
+static LONG show_time(struct PixooHandle *px, ULONG rgb)
+{
+    struct DateTime dt;
+    char time[LEN_DATSTRING];
+    LONG size, w, h;
+
+    DateStamp(&dt.dat_Stamp);
+    dt.dat_Format = FORMAT_DOS;
+    dt.dat_Flags = 0;
+    dt.dat_StrDay = NULL;
+    dt.dat_StrDate = NULL;
+    dt.dat_StrTime = (STRPTR)time;
+    DateToStr(&dt);
+    time[5] = 0;                        /* "HH:MM:SS" -> "HH:MM" */
+    PixooGetBuffer(px, &size);
+    w = PixooTextWidth(px, (CONST_STRPTR)time);
+    h = PixooFontHeight(px, NULL);
+    PixooDrawText(px, (size - w) / 2, (size - h) / 2, (CONST_STRPTR)time, rgb);
+    return PixooPush(px);
+}
+
+/**
+ * @brief Compare two names ignoring the case of ASCII letters.
+ * @param a One name.
+ * @param b The other.
+ * @return Non-zero if they are equal.
+ */
+static int same_name(const char *a, const char *b)
+{
+    char ca, cb;
+
+    do {
+        ca = *a++;
+        cb = *b++;
+        if (ca >= 'A' && ca <= 'Z') ca += 'a' - 'A';
+        if (cb >= 'A' && cb <= 'Z') cb += 'a' - 'A';
+    } while (ca && ca == cb);
+    return ca == cb;
+}
+
+/**
+ * @brief Replace a font name by its exact spelling from AvailFonts().
+ *
+ * OpenDiskFont() compares names case-sensitively with the fonts in memory
+ * (topaz.font from ROM, fonts already loaded), while the file system
+ * ignores case. So "Topaz.font" would not be found and "Times.font"
+ * would be loaded once more although times.font is in memory.
+ *
+ * @param[in,out] name The name with ".font"; changed if a font in memory
+ *                     or in FONTS: has the same name in another case.
+ * @param cap Size of @p name.
+ */
+static void canonical_font_name(char *name, LONG cap)
+{
+    struct AvailFontsHeader *afh;
+    struct AvailFonts *af;
+    ULONG size = 4096;
+    LONG more, i;
+
+    for (;;) {
+        if (!(afh = AllocVec(size, MEMF_ANY))) return;
+        if ((more = AvailFonts(afh, (LONG)size, AFF_MEMORY | AFF_DISK)) <= 0) break;
+        FreeVec(afh);
+        size += more;
+    }
+    af = (struct AvailFonts *)(afh + 1);
+    for (i = 0; i < afh->afh_NumEntries; i++, af++) {
+        const char *n = (const char *)af->af_Attr.ta_Name;
+        if (n && same_name(n, name)) {
+            LONG k;
+            for (k = 0; n[k] && k < cap - 1; k++) name[k] = n[k];
+            name[k] = 0;
+            break;
+        }
+    }
+    FreeVec(afh);
+}
+
+/**
+ * @brief Open a font given as "name/size" ("topaz/8", "SevenAlone.font/7");
+ *        the case of the name does not matter.
+ * @param spec The argument.
+ * @return The font, or NULL (message printed).
+ */
+static struct TextFont *open_font(const char *spec)
+{
+    static char name[108];
+    struct TextAttr ta;
+    struct TextFont *tf;
+    LONG n = 0, slash = -1, ysize = 8;
+
+    while (spec[n] && n < (LONG)sizeof(name) - 6) {
+        if (spec[n] == '/') slash = n;
+        name[n] = spec[n];
+        n++;
+    }
+    name[n] = 0;
+    if (slash >= 0) {
+        if (StrToLong((STRPTR)name + slash + 1, &ysize) < 0 || ysize < 1) {
+            Printf("PixooCtl: FONT needs name/size, e.g. FONT=SevenAlone/7\n");
+            return NULL;
+        }
+        name[n = slash] = 0;
+    }
+    if (n < 5 || name[n - 5] != '.' || (name[n - 4] | 0x20) != 'f' || (name[n - 3] | 0x20) != 'o' ||
+        (name[n - 2] | 0x20) != 'n' || (name[n - 1] | 0x20) != 't') {
+        name[n++] = '.'; name[n++] = 'f'; name[n++] = 'o'; name[n++] = 'n'; name[n++] = 't';
+        name[n] = 0;
+    }
+    if (!DiskfontBase && !(DiskfontBase = OpenLibrary((STRPTR)"diskfont.library", 36))) {
+        Printf("PixooCtl: cannot open diskfont.library\n");
+        return NULL;
+    }
+    canonical_font_name(name, sizeof(name));
+    ta.ta_Name = (STRPTR)name;
+    ta.ta_YSize = (UWORD)ysize;
+    ta.ta_Style = 0;
+    ta.ta_Flags = 0;
+    if (!(tf = OpenDiskFont(&ta))) {
+        Printf("PixooCtl: cannot open font %s %ld\n", (LONG)name, ysize);
+        return NULL;
+    }
+    Printf("Font: %s %ld (%s, line height %ld)\n", (LONG)name, (LONG)tf->tf_YSize,
+           (LONG)(tf->tf_Flags & FPF_PROPORTIONAL ? "proportional" : "fixed width"), (LONG)tf->tf_YSize);
+    return tf;
 }
 
 /**
@@ -222,15 +366,21 @@ int main(void)
     LONG err, rc = RETURN_OK, v, x, y;
     ULONG rgb, color = 0xFFFFFF;
     BOOL pushed = FALSE;
+    struct TextFont *font = NULL;
 
     (void)VersTag;
     if (!(rda = ReadArgs((STRPTR)TEMPLATE, args, NULL))) {
         PrintFault(IoErr(), (STRPTR)"PixooCtl");
         return RETURN_FAIL;
     }
+    if (!(GfxBase = (struct GfxBase *)OpenLibrary((STRPTR)"graphics.library", 36))) {
+        FreeArgs(rda);
+        return RETURN_FAIL;
+    }
     if (!(PixooBase = OpenLibrary((STRPTR)PIXOONAME, PIXOOVERSION)) &&
         !(PixooBase = OpenLibrary((STRPTR)"PROGDIR:" PIXOONAME, PIXOOVERSION))) {
         Printf("PixooCtl: cannot open %s V%ld\n", (LONG)PIXOONAME, (LONG)PIXOOVERSION);
+        CloseLibrary((struct Library *)GfxBase);
         FreeArgs(rda);
         return RETURN_FAIL;
     }
@@ -244,6 +394,7 @@ int main(void)
     if (!px) {
         Printf("PixooCtl: %s (%ld)\n", (LONG)PixooErrorString(err), err);
         CloseLibrary(PixooBase);
+        CloseLibrary((struct Library *)GfxBase);
         FreeArgs(rda);
         return RETURN_FAIL;
     }
@@ -254,6 +405,14 @@ int main(void)
         Printf("PixooCtl: COLOR needs a colour as RRGGBB, e.g. COLOR=FFFF00\n");
         rc = RETURN_FAIL;
         goto done;
+    }
+
+    if (args[ARG_FONT]) {
+        if (!(font = open_font((const char *)args[ARG_FONT]))) {
+            rc = RETURN_FAIL;
+            goto done;
+        }
+        PixooSetFont(px, font);
     }
 
     if (args[ARG_ON]) STEP("Screen on", PixooSetScreen(px, TRUE));
@@ -279,6 +438,7 @@ int main(void)
         STEP("Text", PixooPush(px));
         pushed = TRUE;
     }
+    if (args[ARG_TIME]) { STEP("Time", show_time(px, color)); pushed = TRUE; }
     if (args[ARG_CLEARTEXT]) STEP("Clear text", PixooClearText(px));
     if (args[ARG_SCROLL]) {
         /* the device shows its text only over a picture sent with PixooPush() */
@@ -308,7 +468,10 @@ int main(void)
 
 done:
     PixooClose(px);
+    if (font) CloseFont(font);          /* after PixooClose(): no longer used */
+    if (DiskfontBase) CloseLibrary(DiskfontBase);
     CloseLibrary(PixooBase);
+    CloseLibrary((struct Library *)GfxBase);
     FreeArgs(rda);
     return rc;
 }

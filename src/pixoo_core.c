@@ -182,35 +182,66 @@ void px_rect(unsigned char *fb, int size, long x0, long y0, long x1, long y1, un
 }
 
 /* ------------------------------------------------------------------ */
-/* built-in font                                                       */
+/* bitmap fonts                                                        */
 
-long px_text(unsigned char *fb, int size, long x, long y, const char *text, unsigned long rgb)
+/**
+ * @brief Read a big-endian 16 bit value.
+ * @param p The bytes.
+ * @return The value, sign-extended.
+ */
+static long be16s(const unsigned char *p)
 {
-    long cx = x, widest = 0, row, col;
-    const unsigned char *g;
-    unsigned char c, bits;
+    long v = ((long)p[0] << 8) | p[1];
+    return v >= 0x8000 ? v - 0x10000 : v;
+}
+
+long px_text(unsigned char *fb, int size, const PxFont *f, long x, long y, const char *text, unsigned long rgb)
+{
+    long cx = x, right = x, widest = 0, idx, off, w, kern, adv, row, col, bit, gx;
+    const unsigned char *loc;
+    unsigned char c;
+    int p, set;
 
     while ((c = (unsigned char)*text++)) {
         if (c == '\n') {
-            if (cx - x - 1 > widest) widest = cx - x - 1;
-            cx = x;
-            y += PX_FONT_LINE;
+            if (right - x > widest) widest = right - x;
+            cx = right = x;
+            y += f->ysize;
             continue;
         }
-        g = px_font_glyphs[px_font_map[c]];
-        if (fb && cx < size && cx + g[0] > 0 && y < size && y + PX_FONT_ROWS > 0)
-            for (row = 0; row < PX_FONT_ROWS; row++)
-                for (bits = g[1 + row], col = 0; bits; bits = (unsigned char)(bits << 1), col++)
-                    if (bits & 0x80) px_set_pixel(fb, size, cx + col, y + row, rgb);
-        cx += g[0] + 1;
+        idx = c >= f->lochar && c <= f->hichar ? c - f->lochar : f->hichar - f->lochar + 1;
+        loc = f->charloc + idx * 4;
+        off = ((long)loc[0] << 8) | loc[1];
+        w = ((long)loc[2] << 8) | loc[3];
+        if (f->proportional) {
+            kern = f->charkern ? be16s(f->charkern + idx * 2) : 0;
+            adv = f->charspace ? be16s(f->charspace + idx * 2) : f->xsize;
+        } else {
+            kern = 0;
+            adv = f->xsize;
+        }
+        gx = cx + kern;
+        if (w > 0) {
+            if (gx + w > right) right = gx + w;
+            if (fb && gx < size && gx + w > 0 && y < size && y + f->ysize > 0)
+                for (row = 0; row < f->ysize; row++)
+                    for (col = 0; col < w; col++) {
+                        bit = off + col;
+                        for (set = 0, p = 0; p < f->nplanes && !set; p++)
+                            set = f->planes[p] &&
+                                  (f->planes[p][row * f->modulo + (bit >> 3)] & (0x80 >> (bit & 7)));
+                        if (set) px_set_pixel(fb, size, gx + col, y + row, rgb);
+                    }
+        }
+        cx += kern + adv;
     }
-    if (cx - x - 1 > widest) widest = cx - x - 1;
+    if (right - x > widest) widest = right - x;
     return widest;
 }
 
-long px_text_width(const char *text)
+long px_text_width(const PxFont *f, const char *text)
 {
-    return px_text(0, 0, 0, 0, text, 0);
+    return px_text(0, 0, f, 0, 0, text, 0);
 }
 
 /* ------------------------------------------------------------------ */

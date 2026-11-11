@@ -20,7 +20,7 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 | `src/pixoo_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge), Funktionstabelle, dünne Register-Wrapper |
 | `src/pixoo_dev.c` | portabel: Requests auf einem Handle, Antwortprüfung (`error_code`), Push mit PicID-Reset |
 | `src/pixoo_core.c` | portabel: Framebuffer-Zeichnen, Base64, JSON-Bodies, HTTP-Header und -Antworten |
-| `src/pixoo_font.c` | eingebauter Pixelfont, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
+| `src/pixoo_font.c` | eingebauter Pixelfont im Layout einer Amiga-`TextFont`, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
 | `src/pixoo_net.c` | TCP: bsdsocket.library (Amiga) bzw. POSIX (`PIXOO_HOST`), nicht blockierend mit `WaitSelect()` |
 | `src/pixoo_private.h` | Version (`LIBVERSION`, `LIBREVISION`, `LIBDATE`), `struct PixooHandle`, `pxd_*` |
 | `include/libraries/pixoo.h` | öffentlich: Überblick, Tags, Fehlercodes, Kanäle |
@@ -37,6 +37,9 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 - Logik gehört nach `pixoo_core.c` / `pixoo_dev.c` (portabel, ohne C-Bibliothek: die Library
   linkt ohne Startup-Code), damit `make check` sie auf dem Host testet. `pixoo_lib.c` enthält
   nur Wrapper mit Registerparametern.
+- Text: Ein Renderer (`px_text()` in `pixoo_core.c`) für eingebauten Font und Diskfonts; beide
+  liegen als `PxFont` im Layout von `struct TextFont` vor (Tabellen big-endian, byteweise
+  gelesen). `PixooSetFont()` übernimmt nur Zeiger in die `TextFont` des Aufrufers.
 - Ein Handle gehört der Task, die es geöffnet hat (bsdsocket.library ist pro Task).
 - Der echte Pixoo 64 antwortet mit `Transfer-Encoding: chunked` (ohne Content-Length) und
   schließt die Verbindung trotz `Connection: close` nicht: Das Ende der Antwort ist nur am

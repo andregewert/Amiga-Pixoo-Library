@@ -20,6 +20,7 @@
 
 #include <exec/types.h>
 #include <utility/tagitem.h>
+#include <graphics/text.h>
 #include <libraries/pixoo.h>
 
 /** @name Connection */
@@ -233,19 +234,22 @@ LONG PixooPush(struct PixooHandle *handle);
 /** @{ */
 
 /**
- * @brief Draw text into the framebuffer with the built-in font.
+ * @brief Draw text into the framebuffer in the current font.
  *
- * The font is 5 pixels high above the baseline plus one row for
- * descenders, proportional with one pixel between characters; the digits
- * are all 3 pixels wide so that changing numbers (clocks) do not move.
- * It covers ASCII and the German umlauts, sharp s and degree sign of
- * ISO-8859-1; other characters are drawn as '?'. A newline ("\n")
- * continues #PIXOO_FONTLINE pixels lower at @p x. Only the pixels of the
- * glyphs are set, the background stays.
+ * The current font is the built-in one unless PixooSetFont() set an
+ * Amiga font. The built-in font is 5 pixels high above the baseline plus
+ * one row for descenders, proportional with one pixel between characters;
+ * the digits are all 3 pixels wide so that changing numbers (clocks) do
+ * not move. It covers ASCII and the German umlauts, sharp s and degree
+ * sign of ISO-8859-1; other characters are drawn as '?'.
+ *
+ * A newline ("\n") continues one line height (PixooFontHeight()) lower
+ * at @p x. Only the pixels of the glyphs are set, the background stays.
  *
  * @param handle The handle.
  * @param x Left edge of the first character.
- * @param y Top edge of the text (capitals take rows y to y+4).
+ * @param y Top edge of the text (built-in font: capitals take rows y to
+ *          y+4; see PixooFontHeight() for the baseline).
  * @param text The text (ISO-8859-1).
  * @param rgb The colour, 0xRRGGBB.
  * @return Width of the widest line in pixels.
@@ -253,8 +257,11 @@ LONG PixooPush(struct PixooHandle *handle);
 LONG PixooDrawText(struct PixooHandle *handle, LONG x, LONG y, CONST_STRPTR text, ULONG rgb);
 
 /**
- * @brief Width of text as PixooDrawText() would draw it, e.g. to centre
- *        it: <tt>x = (64 - PixooTextWidth(px, s)) / 2</tt>.
+ * @brief Width of text as PixooDrawText() would draw it in the current
+ *        font, e.g. to centre it: <tt>x = (64 - PixooTextWidth(px, s)) / 2</tt>.
+ *
+ * Measured from the left edge to the right edge of the last glyph, so
+ * trailing spaces do not count.
  * @param handle The handle.
  * @param text The text (ISO-8859-1).
  * @return Width of the widest line in pixels.
@@ -295,6 +302,48 @@ LONG PixooSendText(struct PixooHandle *handle, CONST_STRPTR text, Tag tag1, ...)
  * @return An error code.
  */
 LONG PixooClearText(struct PixooHandle *handle);
+
+/**
+ * @brief Use an Amiga bitmap font for PixooDrawText() and PixooTextWidth().
+ *
+ * Any font from OpenFont() or OpenDiskFont() can be used, e.g.
+ * SevenAlone.font 7 for small text or a large font for a clock:
+ *
+ * @code
+ * struct TextAttr ta = { "SevenAlone.font", 7, 0, 0 };
+ * struct TextFont *tf = OpenDiskFont(&ta);
+ * if (tf) {
+ *     PixooSetFont(px, tf);
+ *     PixooDrawText(px, 1, 1, "12:34", 0xFFFFFF);
+ *     PixooSetFont(px, NULL);
+ *     CloseFont(tf);
+ * }
+ * @endcode
+ *
+ * The glyphs are read from the font's bitmap directly; proportional
+ * fonts with their spacing and kerning work like with Text(). The style
+ * of the font file is used as it is: no algorithmic bold, italic or
+ * underline. Colour fonts are drawn in one colour (a pixel is set if it
+ * is set in any of their planes).
+ *
+ * The font stays the caller's: keep it open until PixooSetFont() sets
+ * another font or NULL, or until PixooClose().
+ *
+ * @param handle The handle.
+ * @param font The font, or NULL for the built-in font.
+ * @return The font set before (NULL for the built-in font).
+ */
+struct TextFont *PixooSetFont(struct PixooHandle *handle, struct TextFont *font);
+
+/**
+ * @brief Line height and baseline of the current font.
+ * @param handle The handle.
+ * @param[out] baseline Receives the row of the baseline, counted from
+ *                      the top edge given to PixooDrawText() (may be NULL).
+ * @return The line height in pixels (7 for the built-in font, whose
+ *         baseline is 4).
+ */
+LONG PixooFontHeight(struct PixooHandle *handle, LONG *baseline);
 
 /** @} */
 

@@ -12,6 +12,7 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 - 64×64-Framebuffer (16/32 ebenfalls) mit Pixeln, Linien, Rechtecken, Text und direktem
   Pufferzugriff; `PixooPush()` zeigt ihn an
 - Eingebauter proportionaler Pixelfont (5 px, Umlaute, gleich breite Ziffern für Uhren)
+- Beliebige Amiga-Bitmap-Fonts (`OpenDiskFont()`) für Text im Framebuffer
 - Lauftext, den das Gerät selbst darstellt
 - Läuft mit jedem TCP/IP-Stack mit bsdsocket.library (Roadshow, AmiTCP, Miami). Nur HTTP,
   daher keine SSL-Bibliothek nötig.
@@ -27,8 +28,8 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 
 ```
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
-         CHANNEL/K/N,CLOCK/K/N,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K,
-         CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
+         CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
+         COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,DEMO/K/N,CMD/K,GET/K,INFO/S
 ```
 
 | Option | Bedeutung |
@@ -40,8 +41,10 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `CLOCK=n` | Nummer des Zifferblatts |
 | `FILL=RRGGBB` | Display mit einer Farbe füllen |
 | `TEST` | Testbild anzeigen |
-| `CHARSET` | alle Zeichen des eingebauten Fonts anzeigen |
+| `FONT=name/größe` | Amiga-Font für `TEXT`, `TIME` und `CHARSET`, z. B. `FONT=SevenAlone/7` |
+| `CHARSET` | alle Zeichen des aktuellen Fonts anzeigen |
 | `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen und anzeigen; `*n` beginnt eine neue Zeile |
+| `TIME` | aktuelle Uhrzeit (HH:MM) zentriert in `COLOR` anzeigen |
 | `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR` |
 | `CLEARTEXT` | Lauftexte des Geräts entfernen |
 | `X=n`, `Y=n`, `COLOR=RRGGBB` | Position und Farbe für `TEXT` und `SCROLL` (Vorgabe FFFFFF) |
@@ -52,7 +55,8 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `PORT`, `TIMEOUT`, `SIZE` | Port (80), Timeout in s (5), Displaygröße (64) |
 
 Beispiele: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
-`PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" COLOR=FFFF00`
+`PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" COLOR=FFFF00`,
+`PixooCtl 192.168.1.50 FONT=topaz/8 TIME COLOR=00FF00`
 
 ## Bauen
 

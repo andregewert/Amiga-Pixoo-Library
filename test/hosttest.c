@@ -119,22 +119,68 @@ static void core_tests(void)
         for (x = 0; x < 16; x++)
             if (px_get_pixel(fb, 16, x, y)) n++;
     check(n == 36 && px_get_pixel(fb, 16, 3, 12) == 0x00FF00 && !px_get_pixel(fb, 16, 4, 4), "px_rect outline");
-    check(px_text_width("") == 0 && px_text_width("1") == 3 && px_text_width("12:34") == 3 * 4 + 1 + 4,
+    check(px_text_width(&px_builtin_font, "") == 0 && px_text_width(&px_builtin_font, "1") == 3 && px_text_width(&px_builtin_font, "12:34") == 3 * 4 + 1 + 4,
           "px_text_width digits and colon");
-    check(px_text_width("ab\nMMM") == 17 && px_text_width("i") == 1, "px_text_width lines and narrow glyphs");
-    check(px_text_width("\x80") == px_text_width("?"), "unknown character as '?'");
+    check(px_text_width(&px_builtin_font, "ab\nMMM") == 17 && px_text_width(&px_builtin_font, "i") == 1, "px_text_width lines and narrow glyphs");
+    check(px_text_width(&px_builtin_font, "\x80") == px_text_width(&px_builtin_font, "?"), "unknown character as '?'");
     px_fill(fb, 16, 0x000000);
-    n = px_text(fb, 16, 1, 1, "Hi", 0xFFFFFF);
+    n = px_text(fb, 16, &px_builtin_font, 1, 1, "Hi", 0xFFFFFF);
     check(n == 5 && px_get_pixel(fb, 16, 1, 1) == 0xFFFFFF && px_get_pixel(fb, 16, 3, 3) == 0xFFFFFF &&
           !px_get_pixel(fb, 16, 2, 1) && px_get_pixel(fb, 16, 5, 1) && !px_get_pixel(fb, 16, 5, 2),
           "px_text draws H and i");
-    px_text(fb, 16, -3, 14, "Wg", 0xFF);    /* clipped, must not crash */
+    px_text(fb, 16, &px_builtin_font, -3, 14, "Wg", 0xFF);    /* clipped, must not crash */
     px_str_init(&s, buf, sizeof(buf));
     px_str_json(&s, "Gr\xfc\xdf" "e");
     check(strcmp(buf, "\"Gr\xc3\xbc\xc3\x9f" "e\"") == 0, "px_str_json converts ISO-8859-1 to UTF-8");
     px_fill_rect(fb, 16, -5, 14, 100, 200, 0x0000FF);
     check(px_get_pixel(fb, 16, 0, 15) == 0xFF && px_get_pixel(fb, 16, 15, 14) == 0xFF &&
           px_get_pixel(fb, 16, 99, 99) == 0, "px_fill_rect clipped");
+}
+
+/**
+ * @brief Checks of the bitmap font renderer with a small font in Amiga
+ *        TextFont layout: kerning, fixed width, missing characters, planes.
+ */
+static void diskfont_tests(void)
+{
+    /* glyphs side by side: A (3 wide) "#.# ### #.#", B (2) "## #. ##",
+     * C (2) "## ## ##", missing-character glyph (1) "# # #"            */
+    static const unsigned char strip[] = { 0xBF, 0x00, 0xF7, 0x00, 0xBF, 0x00 };
+    static const unsigned char empty[] = { 0, 0, 0, 0, 0, 0 };
+    static const unsigned char loc[] = { 0, 0, 0, 3,  0, 3, 0, 2,  0, 5, 0, 2,  0, 7, 0, 1 };
+    static const unsigned char space[] = { 0, 4,  0, 3,  0, 3,  0, 2 };
+    static const unsigned char kern[] = { 0, 0,  0, 1,  0xFF, 0xFF,  0, 0 };
+    PxFont f = { { strip, 0, 0, 0, 0, 0, 0, 0 }, 1, 2, 3, 2, 5, 'A', 'C', 1, loc, space, kern };
+    unsigned char fb[16 * 16 * 3];
+
+    check(px_text_width(&f, "AB") == 7, "font: kerning moves B right (width 7)");
+    check(px_text_width(&f, "BA") == 7, "font: proportional BA (width 7)");
+    check(px_text_width(&f, "C") == 1, "font: negative kerning");
+    check(px_text_width(&f, "Z") == 1 && px_text_width(&f, "a") == 1, "font: missing characters use the last glyph");
+    check(px_text_width(&f, "A\nABAB") == 15, "font: widest line");
+    px_fill(fb, 16, 0);
+    px_text(fb, 16, &f, 0, 0, "AB", 0xFFFFFF);
+    check(px_get_pixel(fb, 16, 0, 0) && !px_get_pixel(fb, 16, 1, 0) && px_get_pixel(fb, 16, 2, 0) &&
+          px_get_pixel(fb, 16, 1, 1) && !px_get_pixel(fb, 16, 4, 0) &&
+          px_get_pixel(fb, 16, 5, 1) && !px_get_pixel(fb, 16, 6, 1) && px_get_pixel(fb, 16, 6, 2),
+          "font: AB drawn at the right pixels");
+    px_fill(fb, 16, 0);
+    px_text(fb, 16, &f, 0, 4, "A\nB", 0xFFFFFF);
+    check(px_get_pixel(fb, 16, 0, 4) && px_get_pixel(fb, 16, 1, 7 + 1) && !px_get_pixel(fb, 16, 2, 8),
+          "font: newline advances by ysize");
+
+    f.proportional = 0;
+    check(px_text_width(&f, "BA") == 8, "font: fixed width uses xsize, no kerning");
+
+    f.proportional = 1;
+    f.planes[0] = empty;
+    f.planes[1] = strip;
+    f.nplanes = 2;
+    check(px_text_width(&f, "AB") == 7, "font: two planes measure the same");
+    px_fill(fb, 16, 0);
+    px_text(fb, 16, &f, 0, 0, "A", 0xFF);
+    check(px_get_pixel(fb, 16, 0, 0) == 0xFF && !px_get_pixel(fb, 16, 1, 0),
+          "font: pixel set in the second plane is drawn");
 }
 
 /**
@@ -198,8 +244,8 @@ static void charset(struct PixooHandle *h)
 
     px_fill(h->fb, h->size, 0);
     for (i = 0; i < 8; i++) {
-        check(px_text_width(lines[i]) <= 63, lines[i]);
-        px_text(h->fb, h->size, 1, 1 + i * (PX_FONT_LINE + 1), lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
+        check(px_text_width(&px_builtin_font, lines[i]) <= 63, lines[i]);
+        px_text(h->fb, h->size, &px_builtin_font, 1, 1 + i * (px_builtin_font.ysize + 1), lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
     }
 }
 
@@ -325,6 +371,7 @@ int main(int argc, char **argv)
         return Failed != 0;
     }
     core_tests();
+    diskfont_tests();
     if (argc == 3) device_tests(argv[1], atoi(argv[2]));
     else printf("no host/port given, device tests skipped\n");
     printf("%d failed\n", Failed);

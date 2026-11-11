@@ -33,6 +33,9 @@ struct PixooHandle {
     int size;                   /**< width and height of the display */
     long refreshlimit;          /**< pictures between counter resets */
     long picid;                 /**< PicID of the last picture; 0: reset before the next */
+    const PxFont *font;         /**< font of PixooDrawText(): &px_builtin_font or &diskfont */
+    PxFont diskfont;            /**< the TextFont given to PixooSetFont(), as PxFont */
+    void *textfont;             /**< that struct TextFont (owned by the caller), or NULL */
     unsigned char *fb;          /**< framebuffer, size * size * 3 bytes */
     char *body;                 /**< body buffer for Draw/SendHttpGif */
     long bodycap;               /**< its size */

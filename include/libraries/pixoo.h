@@ -106,7 +106,8 @@ struct PixooHandle;
 #define PIXOODIR_RIGHT     1    /**< text scrolls to the right */
 /** @} */
 
-/** Line height of the built-in font in pixels (5 above the baseline, 1 descender, 1 gap). */
+/** Line height of the built-in font in pixels (5 above the baseline, 1 descender, 1 gap);
+ *  for the current font see PixooFontHeight(). */
 #define PIXOO_FONTLINE     7
 
 #ifndef PIXOO_HOST

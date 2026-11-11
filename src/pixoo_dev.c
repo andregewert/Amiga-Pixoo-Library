@@ -157,4 +157,6 @@ void pxd_setup(struct PixooHandle *h, unsigned char *mem, int size, long refresh
     h->size = size;
     h->refreshlimit = refreshlimit;
     h->picid = 0;
+    h->font = &px_builtin_font;
+    h->textfont = 0;
 }

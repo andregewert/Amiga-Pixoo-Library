@@ -114,4 +114,12 @@ typedef ULONG _sfdc_vararg;
       LP1(0x96, LONG, PixooClearText , struct PixooHandle *, ___handle, a0,\
       , PIXOO_BASE_NAME)
 
+#define PixooSetFont(___handle, ___font) \
+      LP2(0x9c, struct TextFont *, PixooSetFont , struct PixooHandle *, ___handle, a0, struct TextFont *, ___font, a1,\
+      , PIXOO_BASE_NAME)
+
+#define PixooFontHeight(___handle, ___baseline) \
+      LP2(0xa2, LONG, PixooFontHeight , struct PixooHandle *, ___handle, a0, LONG *, ___baseline, a1,\
+      , PIXOO_BASE_NAME)
+
 #endif /* !_INLINE_PIXOO_H */
