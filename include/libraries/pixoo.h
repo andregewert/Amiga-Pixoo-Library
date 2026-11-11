@@ -82,7 +82,10 @@ struct PixooHandle;
 #define PIXOOERR_BREAK     11   /**< interrupted by Ctrl-C */
 #define PIXOOERR_NOTFOUND  12   /**< key not found in the device's answer */
 #define PIXOOERR_TOOBIG    13   /**< answer did not fit into the buffer (truncated) */
-#define PIXOOERR_MAX       13   /**< highest error code */
+#define PIXOOERR_FILE      14   /**< file not found or not readable */
+#define PIXOOERR_FORMAT    15   /**< not a picture, unknown format or broken file */
+#define PIXOOERR_NODATATYPES 16 /**< datatypes.library V39 or its picture class not available */
+#define PIXOOERR_MAX       16   /**< highest error code */
 /** @} */
 
 /** @name Channels for PixooSetChannel() */
@@ -250,6 +253,95 @@ struct PixooHandle;
  * Type: LONG. Default: #PIXOOALIGN_LEFT.
  */
 #define PIXOOA_TextAlign   (PIXOOA_Dummy + 18)
+
+/** @} */
+
+/** @name Tags for PixooLoadImageA() and PixooLoadAnimA()
+ *  The picture is fitted into a box, keeping its aspect ratio, and centred
+ *  in it. The box may reach beyond the display; the picture is clipped. */
+/** @{ */
+
+/**
+ * @brief Left edge of the box.
+ *
+ * Type: LONG. Default: 0.
+ */
+#define PIXOOA_ImageX      (PIXOOA_Dummy + 20)
+
+/**
+ * @brief Top edge of the box.
+ *
+ * Type: LONG. Default: 0.
+ */
+#define PIXOOA_ImageY      (PIXOOA_Dummy + 21)
+
+/**
+ * @brief Width of the box.
+ *
+ * Type: LONG. Default: the display size. Valid: 1 to 64.
+ */
+#define PIXOOA_ImageWidth  (PIXOOA_Dummy + 22)
+
+/**
+ * @brief Height of the box.
+ *
+ * Type: LONG. Default: the display size. Valid: 1 to 64.
+ */
+#define PIXOOA_ImageHeight (PIXOOA_Dummy + 23)
+
+/**
+ * @brief Also scale pictures smaller than the box up to its size.
+ *
+ * Larger pictures are always shrunk to fit; smaller ones keep their size
+ * unless this is set. Enlarging repeats pixels (no smoothing).
+ *
+ * Type: BOOL. Default: FALSE.
+ */
+#define PIXOOA_ImageEnlarge (PIXOOA_Dummy + 24)
+
+/**
+ * @brief Milliseconds per frame of an animation (PixooLoadAnimA() only).
+ *
+ * The device plays all frames at one speed. 0 uses the average delay of
+ * the file (of the frames sent, see #PIXOOA_AnimMaxFrames), so the
+ * animation keeps its total duration.
+ *
+ * Type: LONG. Default: 0. Valid: 0 to 999999.
+ */
+#define PIXOOA_AnimSpeed   (PIXOOA_Dummy + 25)
+
+/**
+ * @brief Most frames to send (PixooLoadAnimA() only).
+ *
+ * The device accepts at most 59 frames per animation. A file with more
+ * frames is thinned out evenly: every n-th frame is sent. Fewer frames
+ * also mean less to send: each frame is a request of about 16 KB.
+ *
+ * Type: LONG. Default: 59. Valid: 1 to 59.
+ */
+#define PIXOOA_AnimMaxFrames (PIXOOA_Dummy + 26)
+
+/**
+ * @brief Receives the width of the picture in the file.
+ *
+ * Type: LONG *. Default: NULL.
+ */
+#define PIXOOA_SourceWidth (PIXOOA_Dummy + 27)
+
+/**
+ * @brief Receives the height of the picture in the file.
+ *
+ * Type: LONG *. Default: NULL.
+ */
+#define PIXOOA_SourceHeight (PIXOOA_Dummy + 28)
+
+/**
+ * @brief Receives the number of frames in the file (1 for pictures that
+ *        are not GIFs).
+ *
+ * Type: LONG *. Default: NULL.
+ */
+#define PIXOOA_SourceFrames (PIXOOA_Dummy + 29)
 
 /** @} */
 

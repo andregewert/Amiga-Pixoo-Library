@@ -184,6 +184,182 @@ static void diskfont_tests(void)
 }
 
 /**
+ * @brief Allocator for the handle (PxAllocFunc), zeroed memory.
+ * @param ud Unused.
+ * @param n Number of bytes.
+ * @return The memory or NULL.
+ */
+static void *host_alloc(void *ud, long n)
+{
+    (void)ud;
+    return calloc(1, (size_t)n);
+}
+
+/**
+ * @brief Free function for the handle (PxFreeFunc).
+ * @param ud Unused.
+ * @param p The memory (NULL allowed).
+ */
+static void host_free(void *ud, void *p)
+{
+    (void)ud;
+    free(p);
+}
+
+/**
+ * @brief CRC-32 as zlib computes it.
+ * @param p The data.
+ * @param n Its length.
+ * @return The CRC.
+ */
+static unsigned long crc32(const unsigned char *p, long n)
+{
+    unsigned long c = 0xFFFFFFFFUL;
+    int k;
+
+    while (n-- > 0) {
+        c ^= *p++;
+        for (k = 0; k < 8; k++) c = (c >> 1) ^ (0xEDB88320UL & (0UL - (c & 1)));
+    }
+    return c ^ 0xFFFFFFFFUL;
+}
+
+/**
+ * @brief Read a file of the test directory into memory.
+ * @param name The file name in test/.
+ * @param[out] len Receives its length.
+ * @return The data (free() it), or NULL.
+ */
+static unsigned char *read_file(const char *name, long *len)
+{
+    char path[200];
+    unsigned char *d = NULL;
+    FILE *f;
+
+    snprintf(path, sizeof(path), "test/%s", name);
+    if (!(f = fopen(path, "rb"))) return NULL;
+    if (fseek(f, 0, SEEK_END) == 0 && (*len = ftell(f)) > 0 && fseek(f, 0, SEEK_SET) == 0 &&
+        (d = malloc((size_t)*len)) && fread(d, 1, (size_t)*len, f) != (size_t)*len) {
+        free(d);
+        d = NULL;
+    }
+    fclose(f);
+    return d;
+}
+
+/** @brief Unit checks of the scaler (pixoo_image.c). */
+static void scaler_tests(void)
+{
+    static const struct { long sw, sh, bw, bh; int en; long dw, dh; } fit[] = {
+        { 128, 64, 64, 64, 0, 64, 32 }, { 20, 10, 64, 64, 0, 20, 10 }, { 20, 10, 64, 64, 1, 64, 32 },
+        { 1, 1000, 64, 64, 0, 1, 64 }, { 300, 200, 32, 64, 0, 32, 21 }, { 64, 64, 64, 64, 0, 64, 64 }
+    };
+    static const unsigned char rows[2][16] = {
+        { 255, 255, 0, 0,  255, 0, 0, 255,  255, 10, 20, 30,  255, 30, 40, 50 },
+        { 255, 255, 0, 0,  255, 0, 0, 255,  255, 10, 20, 30,  255, 30, 40, 50 }
+    };
+    static const unsigned char half[8] = { 0, 99, 99, 99,  255, 200, 100, 0 };
+    static const unsigned char two[2][8] = { { 255, 1, 2, 3,  255, 4, 5, 6 }, { 255, 7, 8, 9,  255, 10, 11, 12 } };
+    unsigned char fb[16 * 16 * 3];
+    PxScaler s;
+    long i, dw, dh;
+    char buf[100];
+
+    for (i = 0; i < (long)(sizeof(fit) / sizeof(fit[0])); i++) {
+        px_fit(fit[i].sw, fit[i].sh, fit[i].bw, fit[i].bh, fit[i].en, &dw, &dh);
+        snprintf(buf, sizeof(buf), "px_fit %ldx%ld in %ldx%ld = %ldx%ld", fit[i].sw, fit[i].sh,
+                 fit[i].bw, fit[i].bh, dw, dh);
+        check(dw == fit[i].dw && dh == fit[i].dh, buf);
+    }
+    check(!px_scaler_init(&s, fb, 16, 10, 10, 0, 0, 65, 10), "scaler refuses width 65");
+
+    {
+        unsigned char key[12] = { 0, 1, 2, 3,  0, 1, 2, 4,  0, 1, 2, 3 };
+        px_key_row(key, 3, 0x010203L);
+        check(key[0] == 0 && key[4] == 255 && key[8] == 0, "px_key_row: transparent colour");
+        px_key_row(key, 3, -1);
+        check(key[0] == 255 && key[4] == 255 && key[8] == 255, "px_key_row: no key, all opaque");
+    }
+
+    px_fill(fb, 16, 0);
+    px_scaler_init(&s, fb, 16, 4, 2, 1, 1, 2, 1);
+    px_scaler_row(&s, rows[0]);
+    check(px_get_pixel(fb, 16, 1, 1) == 0, "scaler: row not finished before its last source row");
+    px_scaler_row(&s, rows[1]);
+    check(px_get_pixel(fb, 16, 1, 1) == 0x7F007FUL && px_get_pixel(fb, 16, 2, 1) == 0x141E28UL,
+          "scaler: 4x2 shrunk to 2x1 by averaging");
+
+    px_fill(fb, 16, 0x0000FF);
+    px_scaler_init(&s, fb, 16, 2, 1, 0, 0, 1, 1);
+    px_scaler_row(&s, half);
+    check(px_get_pixel(fb, 16, 0, 0) == 0x643280UL, "scaler: half transparent pixel blended");
+
+    px_fill(fb, 16, 0);
+    px_scaler_init(&s, fb, 16, 2, 2, -1, 14, 4, 4);
+    px_scaler_row(&s, two[0]);
+    px_scaler_row(&s, two[1]);
+    check(px_get_pixel(fb, 16, 0, 14) == 0x010203UL && px_get_pixel(fb, 16, 0, 15) == 0x010203UL &&
+          px_get_pixel(fb, 16, 2, 15) == 0x040506UL && px_get_pixel(fb, 16, 3, 15) == 0,
+          "scaler: 2x2 enlarged to 4x4, clipped");
+}
+
+/** @brief Decode the test GIFs and compare every frame with test/gifs.expected. */
+static void gif_tests(void)
+{
+    char line[200], name[64], cur[64] = "", buf[300];
+    long frame, delay, len = 0, d, frames, total, n;
+    unsigned long crc;
+    unsigned char *data = NULL;
+    PxGif *g = calloc(1, sizeof(PxGif));
+    int r = 0, ok = 1, open = 0;
+    FILE *f = fopen("test/gifs.expected", "r");
+
+    if (!f || !g) { check(0, "gif: test/gifs.expected readable"); free(g); return; }
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "%63s %ld %ld %lx", name, &frame, &delay, &crc) != 4) continue;
+        if (strcmp(name, cur)) {
+            if (open) {
+                check(ok && px_gif_next(g, &d) == 0, cur);
+                px_gif_close(g);
+                free(data);
+            }
+            strcpy(cur, name);
+            ok = (data = read_file(name, &len)) != NULL &&
+                 px_gif_open(g, data, len, host_alloc, host_free, NULL) == PIXOOERR_OK;
+            open = 1;
+        }
+        if (!ok) continue;
+        r = px_gif_next(g, &d);
+        if (r != 1 || d != delay || crc32(g->canvas, g->w * g->h * 4) != crc) {
+            snprintf(buf, sizeof(buf), "gif: %s frame %ld (result %d, delay %ld)", name, frame, r, d);
+            check(0, buf);
+            ok = 0;
+        }
+    }
+    if (open) {
+        check(ok && px_gif_next(g, &d) == 0, cur);
+        px_gif_close(g);
+        free(data);
+    }
+    fclose(f);
+
+    data = read_file("many.gif", &len);
+    check(data && px_gif_scan(data, len, &frames, &total) == 0 && frames == 120 && total == 4800,
+          "gif: scan counts 120 frames of 40 ms");
+    if (data) {
+        check(px_gif_scan(data, len / 2, &frames, &total) == PIXOOERR_FORMAT, "gif: scan of a truncated file fails");
+        n = 0;
+        if (px_gif_open(g, data, len / 2, host_alloc, host_free, NULL) == 0)
+            while ((r = px_gif_next(g, &d)) == 1) n++;
+        px_gif_close(g);
+        check(r == -PIXOOERR_FORMAT && n > 0, "gif: decoding a truncated file fails after some frames");
+        check(px_gif_scan(data + 1, len - 1, &frames, &total) == PIXOOERR_FORMAT, "gif: no signature");
+    }
+    free(data);
+    free(g);
+}
+
+/**
  * @brief Create a handle like PixooOpenA() does.
  * @param host The host.
  * @param port The port.
@@ -198,6 +374,8 @@ static struct PixooHandle *open_handle(const char *host, int port, int size, lon
 
     if (!h) { *err = PIXOOERR_NOMEM; return NULL; }
     pxd_setup(h, (unsigned char *)(h + 1), size, limit);
+    h->alloc = host_alloc;
+    h->free = host_free;
     px_strcpy(h->host, host, sizeof(h->host));
     if ((*err = pxn_init(&h->conn)) == 0) {
         h->conn.port = port;
@@ -326,6 +504,48 @@ static void device_tests(const char *host, int port)
     pxn_cleanup(&h->conn);
     free(h);
 
+    /* pictures and animations from GIF files */
+    if (!(h = open_handle(host, port, 64, 32, &err))) { check_err(err, 0, "open mock for GIFs"); return; }
+    {
+        PxImageArgs a = { 0, 0, 64, 64, 1, 0, PX_MAXFRAMES, 0, 0, 0 };
+        long len;
+        unsigned char *data = read_file("still.gif", &len);
+
+        if (data) {
+            check_err(pxd_draw_gif(h, data, len, &a), 0, "draw still.gif enlarged");
+            check(a.srcw == 20 && a.srch == 10 && a.frames == 1, "still.gif is 20x10, 1 frame");
+            check(px_get_pixel(h->fb, 64, 0, 15) == 0 &&
+                  px_get_pixel(h->fb, 64, 0, 16) == ((unsigned long)data[13] << 16 | data[14] << 8 | data[15]),
+                  "still.gif centred at y 16 with its first colour");
+            check_err(pxd_push(h), 0, "push still.gif");
+            a.w = 65;
+            check_err(pxd_draw_gif(h, data, len, &a), PIXOOERR_ARGS, "draw into a box of width 65");
+            free(data);
+        }
+        test_pattern(h);
+        a.w = 32; a.h = 32; a.x = 16; a.y = 16; a.enlarge = 0;
+        if ((data = read_file("anim.gif", &len))) {
+            check_err(pxd_send_gif(h, data, len, &a), 0, "send anim.gif (5 frames, 268 ms)");
+            free(data);
+        }
+        a.x = a.y = 0; a.w = a.h = 64; a.enlarge = 1; a.maxframes = 10;
+        if ((data = read_file("many.gif", &len))) {
+            check_err(pxd_send_gif(h, data, len, &a), 0, "send many.gif thinned to 10 frames");
+            check(a.frames == 120, "many.gif has 120 frames");
+            a.speed = 50;
+            a.maxframes = 1;
+            check_err(pxd_send_gif(h, data, len, &a), 0, "send many.gif as 1 frame of 50 ms");
+            a.maxframes = 60;
+            check_err(pxd_send_gif(h, data, len, &a), PIXOOERR_ARGS, "60 frames refused");
+            free(data);
+        }
+        check_err(pxd_send_gif(h, (const unsigned char *)"GIF89a", 6, &a), PIXOOERR_ARGS, "args checked first");
+        a.maxframes = 5;
+        check_err(pxd_send_gif(h, (const unsigned char *)"GIF89a", 6, &a), PIXOOERR_FORMAT, "broken GIF");
+    }
+    pxn_cleanup(&h->conn);
+    free(h);
+
     /* last: the character sheet stays in the PPM of the mock */
     if (!(h = open_handle(host, port, 64, 32, &err))) { check_err(err, 0, "open mock again"); return; }
     test_pattern(h);
@@ -375,6 +595,8 @@ int main(int argc, char **argv)
     }
     core_tests();
     diskfont_tests();
+    scaler_tests();
+    gif_tests();
     if (argc == 3) device_tests(argv[1], atoi(argv[2]));
     else printf("no host/port given, device tests skipped\n");
     printf("%d failed\n", Failed);

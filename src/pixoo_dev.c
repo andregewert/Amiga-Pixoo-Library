@@ -87,22 +87,147 @@ long pxd_get_config(struct PixooHandle *h, const char *key, long *value)
     return PIXOOERR_OK;
 }
 
-long pxd_push(struct PixooHandle *h)
+/**
+ * @brief Reset the device's picture counter if it is due.
+ *
+ * Before the first picture, after an error and every refreshlimit
+ * pictures; h->picid + 1 is the number of the next picture then.
+ *
+ * @param h The handle.
+ * @return An error code.
+ */
+static long reset_picid(struct PixooHandle *h)
 {
-    PxStr s;
     long err;
 
-    if (!h) return PIXOOERR_ARGS;
     if (h->picid == 0 || h->picid >= h->refreshlimit) {
         if ((err = pxd_simple(h, "Draw/ResetHttpGifId", 0, 0))) return err;
         h->picid = 0;
     }
+    return PIXOOERR_OK;
+}
+
+/**
+ * @brief Send one picture or one frame of an animation.
+ * @param h The handle.
+ * @param fb The picture.
+ * @param picid Its number.
+ * @param picnum Frames of the animation.
+ * @param offset Index of this frame.
+ * @param speed Milliseconds per frame.
+ * @return An error code.
+ */
+static long send_frame(struct PixooHandle *h, const unsigned char *fb, long picid, long picnum,
+                       long offset, long speed)
+{
+    PxStr s;
+
     px_str_init(&s, h->body, h->bodycap);
-    px_cmd_push(&s, h->fb, h->size, h->picid + 1);
+    px_cmd_push(&s, fb, h->size, picid, picnum, offset, speed);
     if (s.overflow) return PIXOOERR_NOMEM;
-    err = pxd_request(h, h->body, s.len, 0, 0, 0);
+    return pxd_request(h, h->body, s.len, 0, 0, 0);
+}
+
+long pxd_push(struct PixooHandle *h)
+{
+    long err;
+
+    if (!h) return PIXOOERR_ARGS;
+    if ((err = reset_picid(h))) return err;
+    err = send_frame(h, h->fb, h->picid + 1, 1, 0, 1000);
     /* after a failure the device's counter is unknown: reset next time */
     h->picid = err ? 0 : h->picid + 1;
+    return err;
+}
+
+long pxd_place(struct PixooHandle *h, PxImageArgs *a, long sw, long sh, PxScaler *s, unsigned char *fb)
+{
+    long dw, dh;
+
+    a->srcw = sw;
+    a->srch = sh;
+    if (a->w < 1 || a->w > PX_MAXSIZE || a->h < 1 || a->h > PX_MAXSIZE) return PIXOOERR_ARGS;
+    px_fit(sw, sh, a->w, a->h, a->enlarge, &dw, &dh);
+    if (!px_scaler_init(s, fb, h->size, sw, sh, a->x + (a->w - dw) / 2, a->y + (a->h - dh) / 2, dw, dh))
+        return PIXOOERR_FORMAT;
+    return PIXOOERR_OK;
+}
+
+/** Working memory of pxd_draw_gif() and pxd_send_gif(), allocated in one piece. */
+typedef struct GifWork {
+    PxGif gif;                  /**< the decoder */
+    PxScaler scaler;            /**< the scaler */
+    unsigned char frame[1];     /**< animation: size * size * 3 bytes for the frame sent */
+} GifWork;
+
+/**
+ * @brief Scale the GIF canvas into a picture.
+ * @param w The working memory (scaler prepared by pxd_place(), restarted here).
+ * @param fb The picture.
+ * @param size Its width and height.
+ */
+static void scale_canvas(GifWork *w, unsigned char *fb, int size)
+{
+    PxScaler *s = &w->scaler;
+    long y;
+
+    px_scaler_init(s, fb, size, s->sw, s->sh, s->dx, s->dy, s->dw, s->dh);
+    for (y = 0; y < w->gif.h; y++) px_scaler_row(s, w->gif.canvas + y * w->gif.w * 4);
+}
+
+long pxd_draw_gif(struct PixooHandle *h, const unsigned char *data, long len, PxImageArgs *a)
+{
+    GifWork *w;
+    long delay, err;
+    int r;
+
+    if (!h || !data) return PIXOOERR_ARGS;
+    if ((err = px_gif_scan(data, len, &a->frames, &delay))) return err;
+    if (!(w = h->alloc(h->ud, sizeof(GifWork)))) return PIXOOERR_NOMEM;
+    if (!(err = px_gif_open(&w->gif, data, len, h->alloc, h->free, h->ud)) &&
+        !(err = pxd_place(h, a, w->gif.w, w->gif.h, &w->scaler, h->fb))) {
+        if ((r = px_gif_next(&w->gif, &delay)) == 1) scale_canvas(w, h->fb, h->size);
+        else err = r < 0 ? -r : PIXOOERR_FORMAT;
+    }
+    px_gif_close(&w->gif);
+    h->free(h->ud, w);
+    return err;
+}
+
+long pxd_send_gif(struct PixooHandle *h, const unsigned char *data, long len, PxImageArgs *a)
+{
+    long fbsize, total, step, count, speed, delay, i, k = 0, id, err, n;
+    GifWork *w;
+    int r = 0;
+
+    if (!h || !data || a->maxframes < 1 || a->maxframes > PX_MAXFRAMES ||
+        a->speed < 0 || a->speed > 999999)
+        return PIXOOERR_ARGS;
+    if ((err = px_gif_scan(data, len, &a->frames, &total))) return err;
+    step = (a->frames + a->maxframes - 1) / a->maxframes;
+    count = (a->frames + step - 1) / step;
+    speed = a->speed ? a->speed : total / count;
+    if (speed < 1) speed = 1;
+    if (speed > 999999) speed = 999999;
+
+    fbsize = (long)h->size * h->size * 3;
+    if (!(w = h->alloc(h->ud, sizeof(GifWork) + fbsize))) return PIXOOERR_NOMEM;
+    if (!(err = px_gif_open(&w->gif, data, len, h->alloc, h->free, h->ud)) &&
+        !(err = pxd_place(h, a, w->gif.w, w->gif.h, &w->scaler, w->frame)) &&
+        !(err = reset_picid(h))) {
+        id = h->picid + 1;
+        for (i = 0; !err && (r = px_gif_next(&w->gif, &delay)) == 1; i++) {
+            if (i % step) continue;
+            for (n = 0; n < fbsize; n++) w->frame[n] = h->fb[n];
+            scale_canvas(w, w->frame, h->size);
+            err = send_frame(h, w->frame, id, count, k++, speed);
+        }
+        if (!err && r < 0) err = -r;
+        if (!err && k != count) err = PIXOOERR_FORMAT;    /* scan and decoder disagree */
+        h->picid = err ? 0 : id;
+    }
+    px_gif_close(&w->gif);
+    h->free(h->ud, w);
     return err;
 }
 
@@ -141,7 +266,10 @@ const char *pxd_error_string(long error)
         "Invalid argument",
         "Interrupted by Ctrl-C",
         "Value not found in the answer",
-        "Answer too long, truncated"
+        "Answer too long, truncated",
+        "File not found or not readable",
+        "Unknown picture format or broken file",
+        "datatypes.library not available"
     };
     if (error < 0 || error > PIXOOERR_MAX) return "Unknown error";
     return msg[error];

@@ -350,4 +350,93 @@ LONG PixooFontHeight(struct PixooHandle *handle, LONG *baseline);
 
 /** @} */
 
+/** @name Pictures */
+/** @{ */
+
+/**
+ * @brief Draw a picture file into the framebuffer.
+ *
+ * Any picture the datatypes system can read (IFF ILBM, PNG, JPEG, BMP
+ * and so on, depending on the installed datatypes) is fitted into a box,
+ * by default the whole display, keeping its aspect ratio: larger pictures
+ * are shrunk (averaging the pixels), smaller ones keep their size unless
+ * #PIXOOA_ImageEnlarge is set. The picture is centred in the box. Pixels
+ * with an alpha channel are blended over the framebuffer, so a picture
+ * with transparency can be drawn over a background.
+ *
+ * GIF files are decoded by the library itself (the first frame, with its
+ * transparency); they need no datatype.
+ *
+ * Nothing is sent; call PixooPush() to show the result. Colours come in
+ * 24 bits from the datatype; palette pictures are converted, so no
+ * colour remapping takes place.
+ *
+ * <b>Context:</b> must be called by a process (datatypes and file access
+ * need DOS). Needs datatypes.library V39 and a picture.datatype V43 or
+ * newer, as in AmigaOS 3.2, for pictures other than GIF. Large pictures
+ * take a while on slow machines; Ctrl-C stops loading (#PIXOOERR_BREAK).
+ *
+ * @param handle The handle.
+ * @param name The file name.
+ * @param tags #PIXOOA_ImageX, #PIXOOA_ImageY, #PIXOOA_ImageWidth,
+ *             #PIXOOA_ImageHeight, #PIXOOA_ImageEnlarge,
+ *             #PIXOOA_SourceWidth, #PIXOOA_SourceHeight,
+ *             #PIXOOA_SourceFrames; may be NULL.
+ * @return An error code: #PIXOOERR_FILE if the file cannot be read,
+ *         #PIXOOERR_FORMAT if it is no picture or broken,
+ *         #PIXOOERR_NODATATYPES if datatypes are missing.
+ */
+LONG PixooLoadImageA(struct PixooHandle *handle, CONST_STRPTR name, struct TagItem *tags);
+
+/**
+ * @brief Varargs form of PixooLoadImageA().
+ * @param handle The handle.
+ * @param name The file name.
+ * @param tag1 First tag, the list ends with TAG_DONE.
+ * @return An error code.
+ */
+LONG PixooLoadImage(struct PixooHandle *handle, CONST_STRPTR name, Tag tag1, ...);
+
+/**
+ * @brief Play a GIF animation on the display.
+ *
+ * Decodes the frames like a web browser does (transparency, disposal
+ * methods, interlacing), fits them into the box like PixooLoadImageA()
+ * and sends them to the device as one animation (Draw/SendHttpGif with
+ * several frames), which then loops it by itself. The frames are drawn
+ * over the current framebuffer, which serves as background and stays
+ * unchanged.
+ *
+ * The device plays at most 59 frames at one speed: longer animations
+ * are thinned out (#PIXOOA_AnimMaxFrames), the speed is the average
+ * delay of the file unless #PIXOOA_AnimSpeed is given. Each frame is one
+ * request of about 16 KB, so sending takes a moment. Like PixooPush(), it
+ * removes texts of PixooSendTextA().
+ *
+ * The whole file is loaded into memory, plus the composed frame in 4
+ * bytes per pixel of the GIF's size.
+ *
+ * <b>Context:</b> must be called by a process. Only GIF files; other
+ * formats give #PIXOOERR_FORMAT (show them with PixooLoadImageA() and
+ * PixooPush()).
+ *
+ * @param handle The handle.
+ * @param name The file name.
+ * @param tags The tags of PixooLoadImageA() and #PIXOOA_AnimSpeed,
+ *             #PIXOOA_AnimMaxFrames; may be NULL.
+ * @return An error code.
+ */
+LONG PixooLoadAnimA(struct PixooHandle *handle, CONST_STRPTR name, struct TagItem *tags);
+
+/**
+ * @brief Varargs form of PixooLoadAnimA().
+ * @param handle The handle.
+ * @param name The file name.
+ * @param tag1 First tag, the list ends with TAG_DONE.
+ * @return An error code.
+ */
+LONG PixooLoadAnim(struct PixooHandle *handle, CONST_STRPTR name, Tag tag1, ...);
+
+/** @} */
+
 #endif /* CLIB_PIXOO_PROTOS_H */

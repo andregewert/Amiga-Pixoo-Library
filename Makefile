@@ -15,9 +15,9 @@ LIBFLAGS:= -nostartfiles -nostdlib
 CTLFLAGS:= $(CPU) -Os -Wall -Wextra -Wno-pointer-sign -fno-common -Iinclude -noixemul -Wl,-u,___stkinit
 
 # pixoo_lib.c must come first: it starts with "moveq #-1,d0; rts"
-LIBSRC  := src/pixoo_lib.c src/pixoo_dev.c src/pixoo_core.c src/pixoo_font.c src/pixoo_net.c
+LIBSRC  := src/pixoo_lib.c src/pixoo_dev.c src/pixoo_core.c src/pixoo_image.c src/pixoo_font.c src/pixoo_net.c
 LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
-LIBHDR  := src/pixoo_core.h src/pixoo_net.h src/pixoo_private.h include/libraries/pixoo.h
+LIBHDR  := src/pixoo_core.h src/pixoo_image.h src/pixoo_net.h src/pixoo_private.h include/libraries/pixoo.h
 
 # shared tools (git submodule): charcheck, docs, icons, Aminet archive
 DEVKIT  := amiga-devkit
@@ -64,8 +64,8 @@ headers: sfd/pixoo_lib.sfd
 # the socket code run on
 # the host too; test/hosttest talks to the mock Pixoo test/mockpixoo.py.
 HOSTCC  := cc -g -Wall -Wextra -fsanitize=address,undefined -DPIXOO_HOST -Iinclude -Isrc
-HOSTSRC := src/pixoo_dev.c src/pixoo_core.c src/pixoo_font.c src/pixoo_net.c
-test/hosttest: test/hosttest.c $(HOSTSRC) src/pixoo_core.h src/pixoo_net.h src/pixoo_private.h include/libraries/pixoo.h
+HOSTSRC := src/pixoo_dev.c src/pixoo_core.c src/pixoo_image.c src/pixoo_font.c src/pixoo_net.c
+test/hosttest: test/hosttest.c $(HOSTSRC) $(filter-out include/%,$(LIBHDR)) include/libraries/pixoo.h
 	$(HOSTCC) -o $@ test/hosttest.c $(HOSTSRC)
 
 check: test/hosttest

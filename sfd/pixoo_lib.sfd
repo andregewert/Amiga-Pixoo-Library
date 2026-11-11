@@ -36,4 +36,10 @@ LONG PixooSendText(struct PixooHandle * handle, CONST_STRPTR text, Tag tag1, ...
 LONG PixooClearText(struct PixooHandle * handle) (a0)
 struct TextFont * PixooSetFont(struct PixooHandle * handle, struct TextFont * font) (a0,a1)
 LONG PixooFontHeight(struct PixooHandle * handle, LONG * baseline) (a0,a1)
+LONG PixooLoadImageA(struct PixooHandle * handle, CONST_STRPTR name, struct TagItem * tags) (a0,a1,a2)
+==varargs
+LONG PixooLoadImage(struct PixooHandle * handle, CONST_STRPTR name, Tag tag1, ...) (a0,a1,a2)
+LONG PixooLoadAnimA(struct PixooHandle * handle, CONST_STRPTR name, struct TagItem * tags) (a0,a1,a2)
+==varargs
+LONG PixooLoadAnim(struct PixooHandle * handle, CONST_STRPTR name, Tag tag1, ...) (a0,a1,a2)
 ==end

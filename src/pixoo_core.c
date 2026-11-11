@@ -288,15 +288,22 @@ void px_cmd_int(PxStr *s, const char *command, const char *key, long value)
     str_char(s, '}');
 }
 
-void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid)
+void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid,
+                 long picnum, long offset, long speed)
 {
     long n = (long)size * size * 3;
 
-    px_str_add(s, "{\"Command\":\"Draw/SendHttpGif\",\"PicNum\":1,\"PicWidth\":");
+    px_str_add(s, "{\"Command\":\"Draw/SendHttpGif\",\"PicNum\":");
+    px_str_num(s, picnum);
+    px_str_add(s, ",\"PicWidth\":");
     px_str_num(s, size);
-    px_str_add(s, ",\"PicOffset\":0,\"PicID\":");
+    px_str_add(s, ",\"PicOffset\":");
+    px_str_num(s, offset);
+    px_str_add(s, ",\"PicID\":");
     px_str_num(s, picid);
-    px_str_add(s, ",\"PicSpeed\":1000,\"PicData\":\"");
+    px_str_add(s, ",\"PicSpeed\":");
+    px_str_num(s, speed);
+    px_str_add(s, ",\"PicData\":\"");
     /* the Base64 text goes straight into the buffer */
     if (!s->overflow && s->len + PX_B64LEN(n) + 3 <= s->cap) {
         s->len += px_base64(fb, n, s->buf + s->len);

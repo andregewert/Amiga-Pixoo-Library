@@ -14,13 +14,19 @@
  * PixooCtl 192.168.1.50 SCROLL="Zweiter Text" Y=40 DEVFONT=2 SPEED=30 TEXTID=1
  * PixooCtl 192.168.1.50 FONT=SevenAlone/7 TEXT="Mit Diskfont"
  * PixooCtl 192.168.1.50 FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
+ * PixooCtl 192.168.1.50 IMAGE=Work:Bilder/Boing.iff
+ * PixooCtl 192.168.1.50 IMAGE=Icon.png ENLARGE TEXT="Hallo" COLOR=FFFFFF
+ * PixooCtl 192.168.1.50 FILL=000000 ANIM=Work:Bilder/Katze.gif FRAMES=20
  * PixooCtl 192.168.1.50 DEMO=100
  * PixooCtl 192.168.1.50 GET=Brightness
  * PixooCtl 192.168.1.50 CMD={"Command":"Channel/GetAllConf"}
  * @endcode
  *
  * Several options may be given at once; they run in the order of the
- * template. Opens pixoo.library from LIBS: or PROGDIR:.
+ * template. The drawing options FILL, TEST, CHARSET, IMAGE, TEXT and TIME
+ * draw on top of each other into the framebuffer, which is sent once
+ * after them, or serves as the background of ANIM. Opens pixoo.library
+ * from LIBS: or PROGDIR:.
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
@@ -52,14 +58,15 @@ struct Library *DiskfontBase = NULL;    /**< diskfont.library, only for FONT */
 #define TEMPLATE "HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N," \
                  "CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,COLOR/K," \
                  "TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,SPEED/K/N,DIR/K,ALIGN/K," \
-                 "DEMO/K/N,CMD/K,GET/K,INFO/S"
+                 "DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,ENLARGE/S,DELAY/K/N,FRAMES/K/N"
 
 /** Positions of the arguments in the ReadArgs array. */
 enum {
     ARG_HOST, ARG_PORT, ARG_TIMEOUT, ARG_SIZE, ARG_ON, ARG_OFF, ARG_BRIGHTNESS,
     ARG_CHANNEL, ARG_CLOCK, ARG_FONT, ARG_FILL, ARG_TEST, ARG_CHARSET, ARG_TEXT, ARG_X, ARG_Y, ARG_COLOR,
     ARG_TIME, ARG_CLEARTEXT, ARG_SCROLL, ARG_TEXTID, ARG_DEVFONT, ARG_WIDTH, ARG_SPEED, ARG_DIR,
-    ARG_ALIGN, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO,
+    ARG_ALIGN, ARG_DEMO, ARG_CMD, ARG_GET, ARG_INFO, ARG_IMAGE, ARG_ANIM, ARG_ENLARGE, ARG_DELAY,
+    ARG_FRAMES,
     ARG_COUNT       /**< number of arguments */
 };
 
@@ -112,16 +119,15 @@ static int parse_rgb(const char *s, ULONG *rgb)
 }
 
 /**
- * @brief Draw a test pattern and push it.
+ * @brief Draw a test pattern.
  *
  * Colour gradient written straight into the framebuffer, a white frame,
  * red and green diagonals and a yellow square in the middle; the corners
  * show whether the picture is rotated or mirrored.
  *
  * @param px The handle.
- * @return An error code.
  */
-static LONG test_pattern(struct PixooHandle *px)
+static void test_pattern(struct PixooHandle *px)
 {
     LONG size, x, y, step;
     UBYTE *fb = PixooGetBuffer(px, &size);
@@ -139,15 +145,13 @@ static LONG test_pattern(struct PixooHandle *px)
     PixooDrawLine(px, 0, last, last, 0, 0x00FF00);
     PixooFillRect(px, m - size / 8, m - size / 8, m + size / 8 - 1, m + size / 8 - 1, 0xFFFF00);
     PixooFillRect(px, 2, 2, 4, 4, 0x00FFFF);    /* top left marker */
-    return PixooPush(px);
 }
 
 /**
- * @brief Show all characters of the built-in font and push them.
+ * @brief Draw all characters of the built-in font.
  * @param px The handle.
- * @return An error code.
  */
-static LONG charset(struct PixooHandle *px)
+static void charset(struct PixooHandle *px)
 {
     static const char *const lines[] = {
         "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz",
@@ -158,17 +162,14 @@ static LONG charset(struct PixooHandle *px)
     PixooFill(px, 0x000000);
     for (i = 0; i < 8; i++)
         PixooDrawText(px, 1, 1 + i * line, (CONST_STRPTR)lines[i], i & 1 ? 0xFFFFFF : 0xFFD040);
-    return PixooPush(px);
 }
 
 /**
- * @brief Draw the current time (HH:MM) centred in the current font and
- *        push it.
+ * @brief Draw the current time (HH:MM) centred in the current font.
  * @param px The handle.
  * @param rgb The colour.
- * @return An error code.
  */
-static LONG show_time(struct PixooHandle *px, ULONG rgb)
+static void show_time(struct PixooHandle *px, ULONG rgb)
 {
     struct DateTime dt;
     char time[LEN_DATSTRING];
@@ -186,7 +187,6 @@ static LONG show_time(struct PixooHandle *px, ULONG rgb)
     w = PixooTextWidth(px, (CONST_STRPTR)time);
     h = PixooFontHeight(px, NULL);
     PixooDrawText(px, (size - w) / 2, (size - h) / 2, (CONST_STRPTR)time, rgb);
-    return PixooPush(px);
 }
 
 /**
@@ -390,7 +390,8 @@ int main(void)
     LONG args[ARG_COUNT] = { 0 };
     struct RDArgs *rda;
     struct PixooHandle *px;
-    LONG err, rc = RETURN_OK, v, x, y;
+    LONG err, rc = RETURN_OK, v, x, y, sw = 0, sh = 0, frames = 0;
+    int drawn = 0;
     ULONG rgb, color = 0xFFFFFF;
     LONG dir = PIXOODIR_LEFT, align = PIXOOALIGN_LEFT;
     static const char *const dirnames[] = { "LEFT", "RIGHT", NULL };
@@ -469,16 +470,49 @@ int main(void)
             goto done;
         }
         PixooFill(px, rgb);
-        STEP("Fill", PixooPush(px));
+        drawn = 1;
     }
-    if (args[ARG_TEST]) STEP("Test pattern", test_pattern(px));
-    if (args[ARG_CHARSET]) STEP("Character set", charset(px));
+    if (args[ARG_TEST]) {
+        test_pattern(px);
+        drawn = 1;
+    }
+    if (args[ARG_CHARSET]) {
+        charset(px);
+        drawn = 1;
+    }
+    if (args[ARG_IMAGE]) {
+        err = PixooLoadImage(px, (CONST_STRPTR)args[ARG_IMAGE],
+                             PIXOOA_ImageEnlarge, args[ARG_ENLARGE] ? TRUE : FALSE,
+                             PIXOOA_SourceWidth, (ULONG)&sw, PIXOOA_SourceHeight, (ULONG)&sh,
+                             TAG_DONE);
+        if (!err) Printf("Image: %ld x %ld pixels\n", sw, sh);
+        STEP("Image", err);
+        drawn = 1;
+    }
     if (args[ARG_TEXT]) {
         unescape(TextBuf, (const char *)args[ARG_TEXT], sizeof(TextBuf));
         PixooDrawText(px, x >= 0 ? x : 1, y >= 0 ? y : 1, (CONST_STRPTR)TextBuf, color);
-        STEP("Text", PixooPush(px));
+        drawn = 1;
     }
-    if (args[ARG_TIME]) STEP("Time", show_time(px, color));
+    if (args[ARG_TIME]) {
+        show_time(px, color);
+        drawn = 1;
+    }
+    /* ANIM sends its own pictures, over the framebuffer as background */
+    if (drawn && !args[ARG_ANIM]) STEP("Picture", PixooPush(px));
+    if (args[ARG_ANIM]) {
+        err = PixooLoadAnim(px, (CONST_STRPTR)args[ARG_ANIM],
+                            PIXOOA_ImageEnlarge, args[ARG_ENLARGE] ? TRUE : FALSE,
+                            args[ARG_DELAY] ? PIXOOA_AnimSpeed : TAG_IGNORE,
+                            args[ARG_DELAY] ? *(LONG *)args[ARG_DELAY] : 0,
+                            args[ARG_FRAMES] ? PIXOOA_AnimMaxFrames : TAG_IGNORE,
+                            args[ARG_FRAMES] ? *(LONG *)args[ARG_FRAMES] : 0,
+                            PIXOOA_SourceWidth, (ULONG)&sw, PIXOOA_SourceHeight, (ULONG)&sh,
+                            PIXOOA_SourceFrames, (ULONG)&frames,
+                            TAG_DONE);
+        if (frames) Printf("Animation: %ld x %ld pixels, %ld frames\n", sw, sh, frames);
+        STEP("Animation", err);
+    }
     if (args[ARG_CLEARTEXT]) STEP("Clear text", PixooClearText(px));
     if (args[ARG_SCROLL]) {
         /* No picture is pushed here: every Draw/SendHttpGif removes all

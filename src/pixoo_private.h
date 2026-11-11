@@ -10,6 +10,7 @@
 
 #include "pixoo_core.h"
 #include "pixoo_net.h"
+#include "pixoo_image.h"
 
 #define LIBNAME     "pixoo.library"     /**< library name */
 #define LIBVERSION  1                   /**< library version */
@@ -39,10 +40,35 @@ struct PixooHandle {
     unsigned char *fb;          /**< framebuffer, size * size * 3 bytes */
     char *body;                 /**< body buffer for Draw/SendHttpGif */
     long bodycap;               /**< its size */
+    PxAllocFunc alloc;          /**< allocator for pictures (zeroed memory) */
+    PxFreeFunc free;            /**< and its free function */
+    void *ud;                   /**< user data for both */
     char host[PX_HOSTLEN];      /**< host name as given (Host field) */
     char hdr[PX_HDRLEN];        /**< HTTP header of the current request */
     char ans[PX_ANSLEN];        /**< answer of the last request */
 };
+
+/**
+ * @brief Parameters and results of loading a picture or an animation.
+ *
+ * The picture is fitted into the box (see px_fit()) and centred in it;
+ * the box may reach beyond the display, the picture is clipped then.
+ */
+typedef struct PxImageArgs {
+    long x;                     /**< box: left edge on the display */
+    long y;                     /**< box: top edge */
+    long w;                     /**< box: width, 1 to 64 */
+    long h;                     /**< box: height, 1 to 64 */
+    int enlarge;                /**< scale small pictures up to the box */
+    long speed;                 /**< animation: milliseconds per frame, 0 = from the file */
+    long maxframes;             /**< animation: most frames to send, 1 to 59 */
+    long srcw;                  /**< out: width of the picture file */
+    long srch;                  /**< out: height of the picture file */
+    long frames;                /**< out: frames in the file */
+} PxImageArgs;
+
+/** Most frames of an animation the device accepts (PicNum below 60). */
+#define PX_MAXFRAMES 59
 
 /** Size of the memory block after the handle: framebuffer and push body. */
 #define PX_HANDLE_EXTRA(size) ((long)(size) * (size) * 3 + PX_PUSH_BODYSIZE(size))
@@ -123,6 +149,48 @@ long pxd_push(struct PixooHandle *h);
  * @return An error code.
  */
 long pxd_send_text(struct PixooHandle *h, const PxText *t);
+
+/**
+ * @brief Prepare a scaler that puts a picture into the box of @p a.
+ * @param h The handle.
+ * @param a The box; srcw and srch are set to the picture size.
+ * @param sw Width of the picture.
+ * @param sh Height of the picture.
+ * @param s The scaler to prepare.
+ * @param fb The picture to draw into (size * size RGB).
+ * @return #PIXOOERR_OK, or #PIXOOERR_ARGS for an invalid box.
+ */
+long pxd_place(struct PixooHandle *h, PxImageArgs *a, long sw, long sh, PxScaler *s, unsigned char *fb);
+
+/**
+ * @brief Draw the first frame of a GIF file into the framebuffer.
+ *
+ * Transparent pixels leave the framebuffer as it is. Nothing is sent.
+ *
+ * @param h The handle (its allocator is used).
+ * @param data The file in memory.
+ * @param len Its length.
+ * @param a Box and results (frames is set, too).
+ * @return An error code.
+ */
+long pxd_draw_gif(struct PixooHandle *h, const unsigned char *data, long len, PxImageArgs *a);
+
+/**
+ * @brief Send a GIF file as an animation.
+ *
+ * Every frame is composed over a copy of the framebuffer, which itself
+ * stays unchanged, and sent with one PicID. Files with more than
+ * a->maxframes frames are thinned out evenly (every n-th frame); the
+ * device knows only one speed for all frames, by default the average
+ * delay of the file, so the animation keeps its total duration.
+ *
+ * @param h The handle.
+ * @param data The file in memory.
+ * @param len Its length.
+ * @param a Box, speed, frame limit and results.
+ * @return An error code.
+ */
+long pxd_send_gif(struct PixooHandle *h, const unsigned char *data, long len, PxImageArgs *a);
 
 /**
  * @brief PixooErrorString().

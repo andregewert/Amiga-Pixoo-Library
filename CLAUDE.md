@@ -19,6 +19,7 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 |---|---|
 | `src/pixoo_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge), Funktionstabelle, dünne Register-Wrapper |
 | `src/pixoo_dev.c` | portabel: Requests auf einem Handle, Antwortprüfung (`error_code`), Push mit PicID-Reset |
+| `src/pixoo_image.c` | portabel: zeilenweiser Skalierer (Flächenmittel, Alpha-Blending) und GIF-Decoder (LZW, Disposal, Interlace) |
 | `src/pixoo_core.c` | portabel: Framebuffer-Zeichnen, Base64, JSON-Bodies, HTTP-Header und -Antworten |
 | `src/pixoo_font.c` | eingebauter Pixelfont im Layout einer Amiga-`TextFont`, **erzeugt** von `tools/mkfont.py` (`make font`); Glyphen dort als ASCII-Art ändern |
 | `src/pixoo_net.c` | TCP: bsdsocket.library (Amiga) bzw. POSIX (`PIXOO_HOST`), nicht blockierend mit `WaitSelect()` |
@@ -28,6 +29,7 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 | `sfd/pixoo_lib.sfd` | Schnittstelle; `include/proto`, `inline`, `fd` mit `make headers` (sfdc) erzeugt |
 | `demo/pixooctl.c` | PixooCtl, Shell-Testprogramm (ReadArgs, keine stdio) |
 | `test/hosttest.c`, `test/mockpixoo.py` | Host-Test gegen einen Mock-Pixoo; `test/requests.expected` ist das erwartete Befehlsprotokoll |
+| `test/*.gif`, `test/gifs.expected` | **erzeugt** von `tools/mktestgifs.py` (eigener LZW-Encoder, Referenz-Compositor, Abgleich mit Pillow) |
 
 ## Regeln
 
@@ -41,6 +43,9 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
   liegen als `PxFont` im Layout von `struct TextFont` vor (Tabellen big-endian, byteweise
   gelesen). `PixooSetFont()` übernimmt nur Zeiger in die `TextFont` des Aufrufers.
 - Ein Handle gehört der Task, die es geöffnet hat (bsdsocket.library ist pro Task).
+- Bilder: Datatypes nur in `pixoo_lib.c` (`PixooLoadImageA()`, datatypes.library pro Aufruf
+  geöffnet); GIFs immer über den eigenen Decoder, auch als Standbild. Animationen gehen als
+  ein Draw/SendHttpGif pro Frame mit gleicher PicID (PicNum < 60, eine Geschwindigkeit).
 - Der echte Pixoo 64 antwortet mit `Transfer-Encoding: chunked` (ohne Content-Length) und
   schließt die Verbindung trotz `Connection: close` nicht: Das Ende der Antwort ist nur am
   letzten, leeren Chunk erkennbar (`pixoo_net.c`). Der Mock verhält sich genauso.

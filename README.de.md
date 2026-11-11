@@ -14,6 +14,9 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 - Eingebauter proportionaler Pixelfont (5 px, Umlaute, gleich breite Ziffern für Uhren)
 - Beliebige Amiga-Bitmap-Fonts (`OpenDiskFont()`) für Text im Framebuffer
 - Lauftext, den das Gerät selbst darstellt
+- Bilder in jedem Format, das das Datatypes-System liest (IFF, PNG, JPEG …), passend
+  skaliert mit festem Seitenverhältnis; Transparenz wird über den Hintergrund geblendet
+- GIF-Animationen (von der Library dekodiert, bis 59 Bilder), vom Gerät abgespielt
 - Läuft mit jedem TCP/IP-Stack mit bsdsocket.library (Roadshow, AmiTCP, Miami). Nur HTTP,
   daher keine SSL-Bibliothek nötig.
 - Timeouts; Ctrl-C bricht Netzwerkzugriffe ab
@@ -21,6 +24,7 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 ## Voraussetzungen
 
 - AmigaOS 3.0 oder neuer (entwickelt für 3.2), 68000 oder besser
+- für Bilder außer GIF: picture.datatype V43 oder neuer (ab AmigaOS 3.5)
 - ein laufender TCP/IP-Stack
 - ein Pixoo 64 im selben Netz
 
@@ -30,7 +34,8 @@ Netzwerk ansteuert, dazu das Shell-Programm **PixooCtl**. Vorbild ist die Python
 PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
          CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
          COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
-         SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S
+         SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,
+         ENLARGE/S,DELAY/K/N,FRAMES/K/N
 ```
 
 | Option | Bedeutung |
@@ -44,7 +49,12 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `TEST` | Testbild anzeigen |
 | `FONT=name/größe` | Amiga-Font für `TEXT`, `TIME` und `CHARSET`, z. B. `FONT=SevenAlone/7` |
 | `CHARSET` | alle Zeichen des aktuellen Fonts anzeigen |
-| `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen und anzeigen; `*n` beginnt eine neue Zeile |
+| `IMAGE=datei` | Bild zeichnen, auf Displaygröße verkleinert |
+| `ANIM=datei` | GIF-Animation abspielen; über dem, was `FILL`, `TEST`, `IMAGE`, `TEXT` … gezeichnet haben |
+| `ENLARGE` | kleine Bilder auch auf Displaygröße vergrößern |
+| `DELAY=n` | Millisekunden pro Bild von `ANIM` (Vorgabe: Mittelwert der Datei) |
+| `FRAMES=n` | höchstens so viele Bilder von `ANIM` senden, 1–59 (Vorgabe 59; längere Animationen werden ausgedünnt) |
+| `TEXT=text` | Text an `X`,`Y` (Vorgabe 1,1) in `COLOR` zeichnen; `*n` beginnt eine neue Zeile |
 | `TIME` | aktuelle Uhrzeit (HH:MM) zentriert in `COLOR` anzeigen |
 | `SCROLL=text` | Lauftext, vom Gerät gezeichnet, an `X`,`Y` (Vorgabe 0,28) in `COLOR`, über dem zuletzt gesendeten Bild; das vorher mit `FILL`, `TEST` oder `TEXT` setzen (ein neues Bild entfernt alle Lauftexte) |
 | `TEXTID=n` | Nummer des Lauftexts, 0–19 (Vorgabe 0); eine andere Nummer fügt einen zweiten Text hinzu |
@@ -61,9 +71,14 @@ PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
 | `INFO` | alle Einstellungen ausgeben |
 | `PORT`, `TIMEOUT`, `SIZE` | Port (80), Timeout in s (5), Displaygröße (64) |
 
+`FILL`, `TEST`, `CHARSET`, `IMAGE`, `TEXT` und `TIME` zeichnen übereinander; das Ergebnis wird
+am Ende einmal gesendet (oder dient `ANIM` als Hintergrund).
+
 Beispiele: `PixooCtl 192.168.1.50 BRIGHTNESS=40 TEST`,
 `PixooCtl 192.168.1.50 FILL=000040 TEXT="Hallo*nAmiga" COLOR=FFFF00`,
-`PixooCtl 192.168.1.50 FONT=topaz/8 TIME COLOR=00FF00`
+`PixooCtl 192.168.1.50 FONT=topaz/8 TIME COLOR=00FF00`,
+`PixooCtl 192.168.1.50 IMAGE=Boing.iff TEXT=Boing!`,
+`PixooCtl 192.168.1.50 FILL=000000 ANIM=katze.gif FRAMES=20`
 
 ## Bauen
 

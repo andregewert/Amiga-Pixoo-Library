@@ -261,13 +261,23 @@ typedef struct PxText {
 void px_cmd_int(PxStr *s, const char *command, const char *key, long value);
 
 /**
- * @brief Body of Draw/SendHttpGif with one picture of the framebuffer.
+ * @brief Body of Draw/SendHttpGif with one picture (a still picture or
+ *        one frame of an animation).
+ *
+ * An animation is sent as @p picnum requests with the same @p picid and
+ * offsets 0 to picnum-1; the device starts playing it when all frames
+ * have arrived (Divoom's description, PicNum below 60).
+ *
  * @param s Receives the body; needs PX_PUSH_BODYSIZE(size) bytes.
- * @param fb The framebuffer.
+ * @param fb The picture, size * size RGB pixels.
  * @param size Its width and height.
- * @param picid Number of the picture (counter of the device).
+ * @param picid Number of the picture or animation (counter of the device).
+ * @param picnum Number of frames of the animation, 1 for a still picture.
+ * @param offset Index of this frame, 0 to picnum-1.
+ * @param speed Milliseconds per frame (at most 9 digits).
  */
-void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid);
+void px_cmd_push(PxStr *s, const unsigned char *fb, int size, long picid,
+                 long picnum, long offset, long speed);
 
 /**
  * @brief Body of Draw/SendHttpText.

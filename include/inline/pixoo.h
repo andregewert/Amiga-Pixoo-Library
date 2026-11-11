@@ -122,4 +122,22 @@ typedef ULONG _sfdc_vararg;
       LP2(0xa2, LONG, PixooFontHeight , struct PixooHandle *, ___handle, a0, LONG *, ___baseline, a1,\
       , PIXOO_BASE_NAME)
 
+#define PixooLoadImageA(___handle, ___name, ___tags) \
+      LP3(0xa8, LONG, PixooLoadImageA , struct PixooHandle *, ___handle, a0, CONST_STRPTR, ___name, a1, struct TagItem *, ___tags, a2,\
+      , PIXOO_BASE_NAME)
+
+#ifndef NO_INLINE_STDARG
+#define PixooLoadImage(___handle, ___name, ___tag1, ...) \
+    ({_sfdc_vararg _tags[] = { ___tag1, __VA_ARGS__ }; PixooLoadImageA((___handle), (___name), (struct TagItem *) _tags); })
+#endif /* !NO_INLINE_STDARG */
+
+#define PixooLoadAnimA(___handle, ___name, ___tags) \
+      LP3(0xae, LONG, PixooLoadAnimA , struct PixooHandle *, ___handle, a0, CONST_STRPTR, ___name, a1, struct TagItem *, ___tags, a2,\
+      , PIXOO_BASE_NAME)
+
+#ifndef NO_INLINE_STDARG
+#define PixooLoadAnim(___handle, ___name, ___tag1, ...) \
+    ({_sfdc_vararg _tags[] = { ___tag1, __VA_ARGS__ }; PixooLoadAnimA((___handle), (___name), (struct TagItem *) _tags); })
+#endif /* !NO_INLINE_STDARG */
+
 #endif /* !_INLINE_PIXOO_H */
