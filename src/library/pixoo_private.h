@@ -15,7 +15,7 @@
 #define LIBNAME     "pixoo.library"     /**< library name */
 #define LIBVERSION  1                   /**< library version */
 #define LIBREVISION 0                   /**< library revision, raised for new features */
-#define LIBDATE     "11.11.2026"        /**< date of the revision (DD.MM.YYYY) */
+#define LIBDATE     "13.11.2026"        /**< date of the revision (DD.MM.YYYY) */
 
 #define PX_HOSTLEN  128                 /**< room for the host name */
 #define PX_HDRLEN   256                 /**< room for an HTTP request header */

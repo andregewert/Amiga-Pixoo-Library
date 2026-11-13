@@ -1,0 +1,65 @@
+;
+; $VER: Install_PixooLib 1.0 (13.11.2026)
+; Installer script for pixoo.library and PixooCtl
+; Copyright (c) 2026 André Gewert, MIT License
+;
+(set #l (if (= @language "deutsch") 1 0))
+(set @app-name "pixoo.library")
+(set @default-dest "Work:")
+
+(welcome
+    (select #l
+        "Welcome to the installation of pixoo.library, which controls a Divoom Pixoo 64 over the network, and PixooCtl, its Shell tool."
+        "Willkommen zur Installation von pixoo.library, die ein Divoom Pixoo 64 über das Netzwerk steuert, und PixooCtl, dem Shell-Programm dazu."))
+
+(set #parts
+    (askoptions
+        (prompt (select #l "Which parts do you want to install?" "Welche Teile sollen installiert werden?"))
+        (help @askoptions-help)
+        (choices
+            (select #l "pixoo.library to LIBS:" "pixoo.library nach LIBS:")
+            (select #l "PixooCtl to C:" "PixooCtl nach C:")
+            (select #l "Developer files (headers, AmigaGuide reference)" "Entwicklerdateien (Header, AmigaGuide-Referenz)"))
+        (default 3)))
+
+; copylib keeps a newer version that is already installed
+(if (IN #parts 0)
+    (copylib
+        (prompt (select #l "Copying pixoo.library to LIBS:" "pixoo.library wird nach LIBS: kopiert"))
+        (help @copylib-help)
+        (source "Libs/pixoo.library")
+        (dest "LIBS:")
+        (confirm)))
+
+(if (IN #parts 1)
+    (copyfiles
+        (prompt (select #l "Copying PixooCtl to C:" "PixooCtl wird nach C: kopiert"))
+        (help @copyfiles-help)
+        (source "PixooCtl")
+        (dest "C:")
+        (confirm)))
+
+(if (IN #parts 2)
+    (
+        (set #dest
+            (askdir
+                (prompt (select #l "Where should the developer files go? A drawer \"pixoo.library\" will be created there."
+                                   "Wohin sollen die Entwicklerdateien? Dort wird eine Schublade \"pixoo.library\" angelegt."))
+                (help @askdir-help)
+                (default @default-dest)))
+        (set #dest (tackon #dest "pixoo.library"))
+        (if (= (exists #dest) 0)
+            (makedir #dest (infos)))
+        (copyfiles
+            (prompt (select #l "Copying the developer files" "Die Entwicklerdateien werden kopiert"))
+            (help @copyfiles-help)
+            (source "Developer")
+            (dest #dest)
+            (all)
+            (infos))
+        (set @default-dest #dest)))
+
+(exit
+    (select #l
+        "pixoo.library has been installed. The drawer Demo shows what it can do: CD into it in a Shell and enter Execute PixooDemo followed by the address of your Pixoo."
+        "pixoo.library ist installiert. Die Schublade Demo zeigt, was sie kann: in einer Shell mit CD hineinwechseln und Execute PixooDemo mit der Adresse des Pixoo eingeben."))

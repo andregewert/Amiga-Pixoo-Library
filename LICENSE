@@ -19,17 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
------------------------------------------------------------------------------
-Third party components
------------------------------------------------------------------------------
-
-htmlttf.gadget contains FreeType 2.3.8:
-  Portions of this software are copyright (c) 2009 The FreeType Project
-  (www.freetype.org). All rights reserved.
-  Used under the FreeType License, see Licenses/FTL.TXT.
-
-The Bitstream Vera fonts in Demo/fonts are
-  Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved.
-  Bitstream Vera is a trademark of Bitstream, Inc.
-  See Licenses/Vera-COPYRIGHT.TXT.

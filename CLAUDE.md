@@ -31,6 +31,8 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
 | `test/hosttest.c`, `test/mockpixoo.py` | Host-Test gegen einen Mock-Pixoo; `test/requests.expected` ist das erwartete Befehlsprotokoll |
 | `demo/PixooDemo` | Amiga-Shell-Skript, führt PixooCtl vor (`Execute PixooDemo <ip>` in seiner Schublade); `make` kopiert `demo/` nach `bin/demo/` |
 | `demo/Pictures/` | Bilder der Demo, **erzeugt** von `tools/mkdemo.py` (`make pictures`): eigene Zeichnungen, eigener ILBM-Encoder |
+| `package/PixooLib.readme`, `package/Install` | Aminet-Readme und Installer-Skript (ISO-8859-1) |
+| `tools/mkdist.py` | `make dist`: `dist/PixooLib.lha` mit klassischen Icons (keine Stil-Sätze), AmigaGuide-Referenz `build/pixoo.library.guide` aus `make guide` (Devkit: `DOXYGEN_GUIDE`, `doxy2guide.py`), denn IBrowse/AWeb können Doxygens HTML nicht darstellen |
 | `test/*.gif`, `test/gifs.expected` | **erzeugt** von `tools/mktestgifs.py` (eigener LZW-Encoder, Referenz-Compositor, Abgleich mit Pillow) |
 
 ## Regeln
@@ -62,7 +64,8 @@ Regeln für Dokumentationskommentare (Doxygen, `make docs`):
   Diff prüfen). Das zuletzt gesendete Bild liegt danach in `build/test/frame.ppm`.
 - `./test/hosttest <ip> 80 real`: harmlose Befehle gegen ein echtes Gerät (Einstellungen lesen,
   Helligkeit auf den aktuellen Wert setzen).
-- `make docs` / `make docs-lib`: Doxygen, schlägt bei jeder Warnung fehl.
+- `make docs` / `make docs-lib`: Doxygen, schlägt bei jeder Warnung fehl. `make guide`:
+  AmigaGuide-Referenz der öffentlichen Header für das Archiv.
 - Auf dem Amiga testet der Benutzer mit dem echten Gerät. Zum Probieren im Emulator ohne Gerät:
   `python3 test/mockpixoo.py --bind 0.0.0.0 --port 8080` und
   `PixooCtl <host-ip> PORT=8080 TEST`.

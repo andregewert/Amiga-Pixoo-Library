@@ -108,6 +108,8 @@ git submodule update --init
 make            # bin/pixoo.library, bin/PixooCtl, bin/demo
 make check      # host test against a mock Pixoo (Python 3)
 make docs       # API reference with Doxygen
+make guide      # AmigaGuide reference build/pixoo.library.guide
+make dist       # Aminet archive dist/PixooLib.lha (needs doxygen and lha)
 ```
 
 The API is documented in `include/libraries/pixoo.h` and `include/clib/pixoo_protos.h`.

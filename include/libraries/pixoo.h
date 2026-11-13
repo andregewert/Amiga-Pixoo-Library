@@ -3,7 +3,7 @@
  * @brief pixoo.library: controls a Divoom Pixoo 64 (or Pixoo 16/32) over
  *        its HTTP interface from AmigaOS 3.x.
  *
- * $VER: pixoo.h 1.0 (11.11.2026)
+ * $VER: pixoo.h 1.0 (13.11.2026)
  *
  * The Pixoo has a small, officially undocumented HTTP interface: every
  * command is a JSON object POSTed to http://DEVICE/post, every answer a

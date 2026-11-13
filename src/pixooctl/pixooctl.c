@@ -47,7 +47,7 @@
 #include <proto/pixoo.h>
 
 /** Version string for the Version command. */
-static const char VersTag[] = "$VER: PixooCtl 1.0 (11.11.2026)";
+static const char VersTag[] = "$VER: PixooCtl 1.0 (13.11.2026)";
 
 /** Stack size, set by the libnix startup code (linked with ___stkinit). */
 unsigned long __stack = 16384;

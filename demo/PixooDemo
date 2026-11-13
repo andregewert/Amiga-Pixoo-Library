@@ -2,12 +2,12 @@
 .BRA {
 .KET }
 .DEF PORT 80
-; $VER: PixooDemo 1.0 (11.11.2026)
+; $VER: PixooDemo 1.0 (13.11.2026)
 ;
 ; Shows the main features of PixooCtl and pixoo.library on a Divoom
 ; Pixoo 64. Start it in its own drawer:
 ;
-;   CD PixooLib/demo
+;   CD PixooLib/Demo
 ;   Execute PixooDemo 192.168.1.50
 ;
 ; PORT is only needed for the mock device of the host test.
@@ -15,69 +15,81 @@
 ; Copyright (c) 2026 André Gewert, MIT License.
 
 FailAt 21
-IF NOT EXISTS /PixooCtl
+IF NOT EXISTS Pictures
   Echo "Please start the demo in its drawer:"
   Echo "  CD <drawer of PixooDemo>"
   Echo "  Execute PixooDemo <IP address of the Pixoo>"
   Quit 20
+ENDIF
+; PixooCtl next to the demo drawer (archive, build) or in the path (C:)
+IF EXISTS /PixooCtl
+  Set ctl /PixooCtl
+ELSE
+  Which >NIL: PixooCtl
+  IF WARN
+    Echo "PixooCtl not found: install it to C: or keep it next to this drawer."
+    Quit 20
+  ENDIF
+  Set ctl PixooCtl
 ENDIF
 
 Echo "pixoo.library demo for the Pixoo at {IP}"
 Echo ""
 
 Echo "1. Reading a setting of the device"
-/PixooCtl {IP} PORT={PORT} GET=Brightness
+$ctl {IP} PORT={PORT} GET=Brightness
 Wait 2
 
 Echo "2. Test pattern (corners show rotation and mirroring)"
-/PixooCtl {IP} PORT={PORT} TEST
+$ctl {IP} PORT={PORT} TEST
 Wait 4
 
 Echo "3. The built-in pixel font"
-/PixooCtl {IP} PORT={PORT} CHARSET
+$ctl {IP} PORT={PORT} CHARSET
 Wait 4
 
 Echo "4. Text in the built-in font and in an Amiga font"
-/PixooCtl {IP} PORT={PORT} FILL=000040 TEXT="Hello*nAmiga!" X=4 Y=4 COLOR=FFFF00
+$ctl {IP} PORT={PORT} FILL=000040 TEXT="Hello*nAmiga!" X=4 Y=4 COLOR=FFFF00
 Wait 3
-/PixooCtl {IP} PORT={PORT} FONT=topaz/8 FILL=200020 TEXT="Topaz*n  8" X=8 Y=20 COLOR=FF8000
+$ctl {IP} PORT={PORT} FONT=topaz/8 FILL=200020 TEXT="Topaz*n  8" X=8 Y=20 COLOR=FF8000
 Wait 3
 
 Echo "5. A clock in topaz"
-/PixooCtl {IP} PORT={PORT} FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
+$ctl {IP} PORT={PORT} FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
 Wait 3
 
 Echo "6. A large IFF picture (320 x 256), shrunk by the library"
-/PixooCtl {IP} PORT={PORT} IMAGE=Pictures/boing.iff
+$ctl {IP} PORT={PORT} IMAGE=Pictures/boing.iff
 Wait 4
 
 Echo "7. A brush with a transparent colour over the test pattern"
-/PixooCtl {IP} PORT={PORT} TEST IMAGE=Pictures/brush.iff
+$ctl {IP} PORT={PORT} TEST IMAGE=Pictures/brush.iff
 Wait 4
 
 Echo "8. Picture and text together"
-/PixooCtl {IP} PORT={PORT} IMAGE=Pictures/floppy.iff TEXT="DF0:" X=22 Y=50 COLOR=000000
+$ctl {IP} PORT={PORT} IMAGE=Pictures/floppy.iff TEXT="DF0:" X=22 Y=50 COLOR=000000
 Wait 4
 
 Echo "9. GIF animations, played by the device itself"
-/PixooCtl {IP} PORT={PORT} ANIM=Pictures/boing.gif
+$ctl {IP} PORT={PORT} ANIM=Pictures/boing.gif
 Wait 8
-/PixooCtl {IP} PORT={PORT} ANIM=Pictures/copper.gif
+$ctl {IP} PORT={PORT} ANIM=Pictures/copper.gif
 Wait 8
 
 Echo "10. Scrolling text, rendered by the device"
-/PixooCtl {IP} PORT={PORT} FILL=000030 SCROLL="pixoo.library - the Amiga meets the Pixoo" Y=12 COLOR=FFFF00 SPEED=60
-/PixooCtl {IP} PORT={PORT} SCROLL="Greetings to all Amiga fans!" Y=40 TEXTID=1 DEVFONT=2 COLOR=00FFFF SPEED=40
+$ctl {IP} PORT={PORT} FILL=000030 SCROLL="pixoo.library - the Amiga meets the Pixoo" Y=12 COLOR=FFFF00 SPEED=60
+$ctl {IP} PORT={PORT} SCROLL="Greetings to all Amiga fans!" Y=40 TEXTID=1 DEVFONT=2 COLOR=00FFFF SPEED=40
 Wait 12
-/PixooCtl {IP} PORT={PORT} CLEARTEXT
+$ctl {IP} PORT={PORT} CLEARTEXT
 
 Echo "11. Animation from the Amiga: as many pictures per second as possible"
-/PixooCtl {IP} PORT={PORT} DEMO=100
+$ctl {IP} PORT={PORT} DEMO=100
 
 Echo "12. Slideshow of the drawer Pictures (5 seconds each)"
-/PixooCtl {IP} PORT={PORT} SHOW=Pictures SECONDS=5
+$ctl {IP} PORT={PORT} SHOW=Pictures SECONDS=5
 
 Echo "13. Back to the clock face"
 Wait 5
-/PixooCtl {IP} PORT={PORT} CHANNEL=0
+$ctl {IP} PORT={PORT} CHANNEL=0
+UnSet ctl
 Echo "Done."

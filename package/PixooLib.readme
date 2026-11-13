@@ -1,0 +1,288 @@
+Short:        Library and tool for the Divoom Pixoo 64
+Author:       André Gewert <agewert@ubergeek.de>
+Uploader:     André Gewert <agewert@ubergeek.de>
+Type:         comm/tcp
+Version:      1.0
+Architecture: m68k-amigaos >= 3.0.0
+Requires:     TCP/IP stack (bsdsocket.library), picture.datatype V43+
+Distribution: Aminet
+
+pixoo.library controls a Divoom Pixoo 64 LED display (also Pixoo 16/32)
+over the network, through the device's small HTTP interface. PixooCtl
+brings all of it to the Shell: pictures, animations, text, a clock and
+slideshows on the Pixoo, straight from your Amiga.
+
+Features
+--------
+ - display on/off, brightness, channel, clock face, device settings
+ - 64x64 framebuffer with pixels, lines, rectangles and text, sent to
+   the display with one call
+ - built-in pixel font, and any Amiga bitmap font (topaz, SevenAlone ...)
+ - scrolling text rendered by the device itself
+ - pictures in every format the datatypes system reads (IFF, PNG, JPEG,
+   ...), shrunk to fit with their aspect ratio kept; alpha channels and
+   transparent colours are blended over the background
+ - GIF animations (decoded by the library, up to 59 frames), played by
+   the device on its own
+ - PixooCtl: slideshow of a drawer, sorted or in random order
+ - any TCP/IP stack with bsdsocket.library (Roadshow, AmiTCP, Miami);
+   plain HTTP, no SSL library needed
+ - 68000 or better; network calls can be stopped with Ctrl-C
+
+The Pixoo's interface is not officially documented; this project is not
+affiliated with Divoom. Tested with a Pixoo 64 on AmigaOS 3.2.
+
+Installation
+------------
+Double click Install. It copies pixoo.library to LIBS: and, if you like,
+PixooCtl to C: and the developer files (headers and AmigaGuide reference)
+to a drawer of your choice. PixooCtl also runs straight from the archive.
+
+Pictures other than GIF need picture.datatype V43 or newer (AmigaOS 3.5
+and later); everything else works on AmigaOS 3.0.
+
+PixooCtl
+--------
+PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
+ CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
+ COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
+ SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,
+ ENLARGE/S,DELAY/K/N,FRAMES/K/N,SHOW/K,PATTERN/K,SECONDS/K/N,REPEAT/S,
+ RANDOM/S
+
+ HOST              IP address or name of the Pixoo
+ ON, OFF           switch the display on or off
+ BRIGHTNESS=n      brightness 0-100
+ CHANNEL=n         0 clock faces, 1 cloud, 2 visualizer, 3 custom
+ CLOCK=n           clock face id
+ FILL=RRGGBB       fill the display with one colour
+ TEST              test pattern
+ FONT=name/size    Amiga font for TEXT, TIME and CHARSET, e.g. topaz/8
+ CHARSET           all characters of the current font
+ IMAGE=file        draw a picture, shrunk to fit the display
+ ANIM=file         play a GIF animation over what was drawn before
+ ENLARGE           also scale small pictures up to the display size
+ DELAY=n           milliseconds per frame of ANIM (default: from the file)
+ FRAMES=n          most frames of ANIM, 1-59 (longer ones are thinned out)
+ TEXT=text         draw text at X,Y in COLOR; "*n" starts a new line
+ TIME              the current time (HH:MM), centred, in COLOR
+ SCROLL=text       scrolling text drawn by the device at X,Y in COLOR,
+                   over the picture shown last
+ TEXTID=n          slot of the scrolling text, 0-19; another id adds a text
+ DEVFONT=n         font of the device for SCROLL, 0-7
+ WIDTH=n           width of the scrolling area, 16-64
+ SPEED=n           milliseconds per scroll step, 0-100 (smaller is faster)
+ DIR=LEFT|RIGHT    scroll direction (ignored by the firmware tested)
+ ALIGN=LEFT|CENTER|RIGHT  alignment within the text area
+ CLEARTEXT         remove the scrolling texts
+ X=n, Y=n          position for TEXT and SCROLL
+ COLOR=RRGGBB      colour for TEXT, TIME and SCROLL (default FFFFFF)
+ SHOW=drawer       slideshow of the pictures in a drawer, sorted by name
+ PATTERN=pattern   files for SHOW, e.g. #?.(iff|png); icons are skipped
+ SECONDS=n         display time per picture of SHOW (default 10)
+ REPEAT            start SHOW again after the last picture
+ RANDOM            random order, new for every round
+ DEMO=n            bouncing square for n frames, prints frames per second
+ CMD=json          send a raw JSON command and print the answer
+ GET=key           print one setting, e.g. GET=Brightness
+ INFO              print all settings
+ PORT, TIMEOUT, SIZE  port (80), timeout in s (5), display size (64)
+
+FILL, TEST, CHARSET, IMAGE, TEXT and TIME draw on top of each other; the
+result is sent once (or is the background of ANIM and SHOW). Ctrl-C stops
+a slideshow at any time.
+
+Examples:
+ PixooCtl 192.168.1.50 IMAGE=Work:Pictures/Boing.iff TEXT="Boing!"
+ PixooCtl 192.168.1.50 FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
+ PixooCtl 192.168.1.50 FILL=000000 ANIM=cat.gif FRAMES=20
+ PixooCtl 192.168.1.50 SHOW=Work:Pictures PATTERN=#?.iff RANDOM REPEAT
+
+Demo
+----
+The drawer Demo holds a Shell script that shows the main features one
+after the other, with pictures drawn for it (a bouncing ball, copper bars,
+a floppy disk):
+
+ CD Demo
+ Execute PixooDemo 192.168.1.50
+
+Developers
+----------
+The reference of all functions, tags and error codes is
+Developer/pixoo.library.guide (AmigaGuide, made from the comments of the
+headers). Developer/include holds the libraries, clib, proto and inline
+headers, Developer/fd and Developer/sfd the interface files. Programs open
+the library like any other and then work with a handle:
+
+ px = PixooOpen("192.168.1.50", TAG_DONE);
+ PixooLoadImage(px, "Work:Pictures/Boing.iff", TAG_DONE);
+ PixooPush(px);
+ PixooClose(px);
+
+The sources are in the drawer Source; they build with bebbo's amiga-gcc
+cross compiler ("make"), see Source/README.md.
+
+Contents
+--------
+ Install              Installer script (English/German)
+ Libs/pixoo.library   the library
+ PixooCtl             the Shell tool
+ Demo/                demo script and pictures
+ Developer/           headers, fd, sfd and AmigaGuide reference
+ Source/              sources (MIT License)
+ LICENSE              MIT License
+
+History
+-------
+1.0 (13.11.2026)
+ - first release
+
+License
+-------
+MIT License, see LICENSE. Copyright (c) 2026 André Gewert.
+
+
+==========================================================================
+Deutsch
+==========================================================================
+
+pixoo.library steuert eine LED-Anzeige Divoom Pixoo 64 (auch Pixoo 16/32)
+über das Netzwerk, mit der kleinen HTTP-Schnittstelle des Geräts.
+PixooCtl macht alles davon in der Shell verfügbar: Bilder, Animationen,
+Text, eine Uhr und Diashows auf dem Pixoo, direkt vom Amiga.
+
+Funktionen
+----------
+ - Anzeige an/aus, Helligkeit, Kanal, Zifferblatt, Geräteeinstellungen
+ - 64x64-Framebuffer mit Pixeln, Linien, Rechtecken und Text, mit einem
+   Aufruf an die Anzeige geschickt
+ - eingebauter Pixelfont und jeder Amiga-Bitmap-Font (topaz, SevenAlone ...)
+ - Lauftext, den das Gerät selbst darstellt
+ - Bilder in jedem Format, das das Datatypes-System liest (IFF, PNG, JPEG
+   ...), passend verkleinert mit festem Seitenverhältnis; Alphakanäle und
+   transparente Farben werden über den Hintergrund geblendet
+ - GIF-Animationen (von der Library dekodiert, bis 59 Bilder), die das
+   Gerät selbstständig abspielt
+ - PixooCtl: Diashow einer Schublade, sortiert oder in zufälliger Folge
+ - jeder TCP/IP-Stack mit bsdsocket.library (Roadshow, AmiTCP, Miami);
+   nur HTTP, keine SSL-Bibliothek nötig
+ - 68000 oder besser; Netzwerkzugriffe lassen sich mit Ctrl-C abbrechen
+
+Die Schnittstelle des Pixoo ist nicht offiziell dokumentiert; dieses
+Projekt steht in keiner Verbindung zu Divoom. Getestet mit einem Pixoo 64
+unter AmigaOS 3.2.
+
+Installation
+------------
+Install doppelklicken. Es kopiert pixoo.library nach LIBS: und auf Wunsch
+PixooCtl nach C: sowie die Entwicklerdateien (Header und
+AmigaGuide-Referenz) in eine Schublade Ihrer Wahl. PixooCtl läuft auch
+direkt aus dem Archiv.
+
+Bilder außer GIF brauchen picture.datatype V43 oder neuer (ab AmigaOS
+3.5); alles andere funktioniert schon unter AmigaOS 3.0.
+
+PixooCtl
+--------
+PixooCtl HOST/A,PORT/K/N,TIMEOUT/K/N,SIZE/K/N,ON/S,OFF/S,BRIGHTNESS=BRI/K/N,
+ CHANNEL/K/N,CLOCK/K/N,FONT/K,FILL/K,TEST/S,CHARSET/S,TEXT/K,X/K/N,Y/K/N,
+ COLOR/K,TIME/S,CLEARTEXT/S,SCROLL/K,TEXTID/K/N,DEVFONT/K/N,WIDTH/K/N,
+ SPEED/K/N,DIR/K,ALIGN/K,DEMO/K/N,CMD/K,GET/K,INFO/S,IMAGE/K,ANIM/K,
+ ENLARGE/S,DELAY/K/N,FRAMES/K/N,SHOW/K,PATTERN/K,SECONDS/K/N,REPEAT/S,
+ RANDOM/S
+
+ HOST              IP-Adresse oder Name des Pixoo
+ ON, OFF           Anzeige an- oder ausschalten
+ BRIGHTNESS=n      Helligkeit 0-100
+ CHANNEL=n         0 Zifferblätter, 1 Cloud, 2 Visualizer, 3 eigene Seiten
+ CLOCK=n           Nummer des Zifferblatts
+ FILL=RRGGBB       Anzeige mit einer Farbe füllen
+ TEST              Testbild
+ FONT=name/größe   Amiga-Font für TEXT, TIME und CHARSET, z. B. topaz/8
+ CHARSET           alle Zeichen des aktuellen Fonts
+ IMAGE=datei       Bild zeichnen, auf Anzeigegröße verkleinert
+ ANIM=datei        GIF-Animation abspielen, über dem vorher Gezeichneten
+ ENLARGE           kleine Bilder auch auf Anzeigegröße vergrößern
+ DELAY=n           Millisekunden pro Bild von ANIM (Vorgabe: aus der Datei)
+ FRAMES=n          höchstens so viele Bilder von ANIM, 1-59 (längere
+                   Animationen werden ausgedünnt)
+ TEXT=text         Text an X,Y in COLOR zeichnen; "*n" beginnt eine neue Zeile
+ TIME              aktuelle Uhrzeit (HH:MM), zentriert, in COLOR
+ SCROLL=text       Lauftext, vom Gerät gezeichnet, an X,Y in COLOR, über
+                   dem zuletzt gesendeten Bild
+ TEXTID=n          Nummer des Lauftexts, 0-19; eine andere fügt Text hinzu
+ DEVFONT=n         Font des Geräts für SCROLL, 0-7
+ WIDTH=n           Breite des Laufbereichs, 16-64
+ SPEED=n           Millisekunden pro Schritt, 0-100 (kleiner ist schneller)
+ DIR=LEFT|RIGHT    Laufrichtung (von der getesteten Firmware ignoriert)
+ ALIGN=LEFT|CENTER|RIGHT  Ausrichtung im Textbereich
+ CLEARTEXT         Lauftexte entfernen
+ X=n, Y=n          Position für TEXT und SCROLL
+ COLOR=RRGGBB      Farbe für TEXT, TIME und SCROLL (Vorgabe FFFFFF)
+ SHOW=schublade    Diashow der Bilder einer Schublade, nach Namen sortiert
+ PATTERN=muster    Dateien für SHOW, z. B. #?.(iff|png); Icons werden
+                   übergangen
+ SECONDS=n         Anzeigedauer pro Bild bei SHOW (Vorgabe 10)
+ REPEAT            SHOW nach dem letzten Bild von vorn beginnen
+ RANDOM            zufällige Reihenfolge, jede Runde neu
+ DEMO=n            springendes Quadrat für n Bilder, gibt Bilder/s aus
+ CMD=json          JSON-Befehl senden und Antwort ausgeben
+ GET=key           eine Einstellung ausgeben, z. B. GET=Brightness
+ INFO              alle Einstellungen ausgeben
+ PORT, TIMEOUT, SIZE  Port (80), Timeout in s (5), Anzeigegröße (64)
+
+FILL, TEST, CHARSET, IMAGE, TEXT und TIME zeichnen übereinander; das
+Ergebnis wird einmal gesendet (oder dient ANIM und SHOW als Hintergrund).
+Ctrl-C beendet eine Diashow jederzeit.
+
+Beispiele:
+ PixooCtl 192.168.1.50 IMAGE=Work:Pictures/Boing.iff TEXT="Boing!"
+ PixooCtl 192.168.1.50 FONT=topaz/8 FILL=000000 TIME COLOR=00FF00
+ PixooCtl 192.168.1.50 FILL=000000 ANIM=cat.gif FRAMES=20
+ PixooCtl 192.168.1.50 SHOW=Work:Pictures PATTERN=#?.iff RANDOM REPEAT
+
+Demo
+----
+Die Schublade Demo enthält ein Shell-Skript, das die wichtigsten
+Funktionen nacheinander vorführt, mit eigens gezeichneten Bildern (ein
+springender Ball, Copper-Balken, eine Diskette):
+
+ CD Demo
+ Execute PixooDemo 192.168.1.50
+
+Entwickler
+----------
+Die Referenz aller Funktionen, Tags und Fehlercodes ist
+Developer/pixoo.library.guide (AmigaGuide, aus den Kommentaren der Header
+erzeugt; englisch). Developer/include enthält die Header libraries, clib,
+proto und inline, Developer/fd und Developer/sfd die
+Schnittstellendateien. Programme öffnen die Library wie jede andere und
+arbeiten dann mit einem Handle:
+
+ px = PixooOpen("192.168.1.50", TAG_DONE);
+ PixooLoadImage(px, "Work:Pictures/Boing.iff", TAG_DONE);
+ PixooPush(px);
+ PixooClose(px);
+
+Die Quellen liegen in der Schublade Source; sie bauen mit bebbos
+amiga-gcc-Crosscompiler ("make"), siehe Source/README.de.md.
+
+Inhalt
+------
+ Install              Installer-Skript (Englisch/Deutsch)
+ Libs/pixoo.library   die Library
+ PixooCtl             das Shell-Programm
+ Demo/                Demo-Skript und Bilder
+ Developer/           Header, fd, sfd und AmigaGuide-Referenz
+ Source/              Quellen (MIT-Lizenz)
+ LICENSE              MIT-Lizenz
+
+Versionsgeschichte
+------------------
+1.0 (13.11.2026)
+ - erste Veröffentlichung
+
+Lizenz
+------
+MIT-Lizenz, siehe LICENSE. Copyright (c) 2026 André Gewert.

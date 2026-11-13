@@ -109,6 +109,8 @@ git submodule update --init
 make            # bin/pixoo.library, bin/PixooCtl, bin/demo
 make check      # Host-Test gegen einen Mock-Pixoo (Python 3)
 make docs       # API-Referenz mit Doxygen
+make guide      # AmigaGuide-Referenz build/pixoo.library.guide
+make dist       # Aminet-Archiv dist/PixooLib.lha (braucht doxygen und lha)
 ```
 
 Die Schnittstelle ist in `include/libraries/pixoo.h` und `include/clib/pixoo_protos.h`

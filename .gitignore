@@ -1,6 +1,7 @@
 # build results (make, make check, make docs)
 /build/
 /bin/
+/dist/
 /test/hosttest
 *.o
 *.debug

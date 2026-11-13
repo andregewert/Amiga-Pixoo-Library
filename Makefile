@@ -95,12 +95,20 @@ check-update: test/hosttest
 
 # --- documentation (Doxygen on the host, not part of "all") ----------------
 include $(DEVKIT)/make/docs.mk
-DOCVERSION  := $(shell sed -n 's/^.define LIBVERSION *//p' src/library/pixoo_private.h).$(shell sed -n 's/^.define LIBREVISION *//p' src/library/pixoo_private.h)
+DOCVERSION  := $(shell sed -n 's/^.define LIBVERSION *\([0-9]*\).*/\1/p' src/library/pixoo_private.h).$(shell sed -n 's/^.define LIBREVISION *\([0-9]*\).*/\1/p' src/library/pixoo_private.h)
 DOC_SOURCES := $(wildcard src/library/*.c src/library/*.h) include/libraries/pixoo.h include/clib/pixoo_protos.h src/pixooctl/pixooctl.c test/hosttest.c
 $(eval $(call DOXYGEN_DOCS,docs,pixoo.library,$(DOCVERSION),$(DOC_SOURCES),build/docs))
 $(eval $(call DOXYGEN_DOCS,docs-lib,pixoo.library,$(DOCVERSION),include/libraries/pixoo.h include/clib/pixoo_protos.h,build/docs/pixoo.library))
+# AmigaGuide reference of the public headers (for the Aminet archive)
+DOCDATE     := $(shell sed -n 's/^.define LIBDATE *"\([^"]*\)".*/\1/p' src/library/pixoo_private.h)
+$(eval $(call DOXYGEN_GUIDE,guide,pixoo.library,$(DOCVERSION) ($(DOCDATE)),include/libraries/pixoo.h include/clib/pixoo_protos.h,build/pixoo.library.guide))
+
+# --- Aminet archive -------------------------------------------------------
+# dist/PixooLib.lha (tools/mkdist.py; needs doxygen and jlha or lha)
+dist: all guide
+	python3 tools/mkdist.py
 
 clean:
-	rm -rf build bin test/hosttest
+	rm -rf build bin dist test/hosttest
 
-.PHONY: all clean check check-update headers font pictures
+.PHONY: all clean check check-update headers font pictures dist
